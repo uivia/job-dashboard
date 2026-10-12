@@ -1,10 +1,27 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { decodeGmailMessage, getGmailMessages, gmailSearchQuery, listGmailMessageIds } from "../src/lib/gmail/client.ts";
+import { parseJobEmail } from "../src/lib/gmail/parser.ts";
 
 const encode = (value: string) => Buffer.from(value).toString("base64url");
 
 describe("Gmail client helpers", () => {
+  test("imports Indeed's HTML company when the plain-text alternative omits it", () => {
+    const email = decodeGmailMessage({
+      id: "indeed-html-company", internalDate: "1791163354000",
+      payload: {
+        headers: [{ name: "Subject", value: "Indeed Application: Python Developer | Taguig" }],
+        parts: [
+          { mimeType: "text/plain", body: { data: encode("Your application has been submitted. Good luck!") } },
+          { mimeType: "text/html", body: { data: encode('<p>Application submitted</p><a href="https://apply.indeed.com/indeedapply/confirmemail/viewjob?next=https%3A%2F%2Fph.indeed.com%2Fjob%2Fpython-abc">Python Developer | Taguig</a><p>Acme - Taguig</p><p>The following items were sent to Acme. Good luck!</p>') } }
+        ]
+      }
+    });
+    const event = parseJobEmail(email);
+    assert.equal(event?.company, "Acme");
+    assert.equal(event?.title, "Python Developer | Taguig");
+    assert.equal(event?.jobPostingUrl, "https://ph.indeed.com/job/python-abc");
+  });
   test("builds the fixed ninety-day job email query", () => {
     assert.equal(
       gmailSearchQuery,

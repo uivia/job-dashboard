@@ -110,9 +110,22 @@ function extractTitleAndCompany(email: JobEmail): { title: string; company: stri
   match = text.match(/(?:role|position) of (.+?) at (.+?)(?:[.!]|$)/i);
   if (match) return { title: clean(match[1]), company: clean(match[2]) };
 
-  match = subject.match(/^Indeed Application:\s*(.+?)(?:\s*\||$)/i);
+  match = subject.match(/^Indeed Application:\s*(.+)$/i);
   if (match) {
-    const company = text.match(/\bat (.+?)(?:[.!]|$)/i)?.[1];
+    const linkedCompanies = (email.links ?? []).flatMap((link) => {
+      try {
+        const url = new URL(link.url);
+        return (url.protocol === "http:" || url.protocol === "https:") &&
+          (url.hostname === "indeed.com" || url.hostname.endsWith(".indeed.com")) &&
+          url.pathname.startsWith("/cmp/") && clean(link.text) ? [clean(link.text)] : [];
+      } catch {
+        return [];
+      }
+    });
+    const companies = [...new Set(linkedCompanies)];
+    const company = companies.length === 1 ? companies[0] :
+      text.match(/the following items were sent to (.+?)\.\s*Good luck!/i)?.[1] ??
+      text.match(/\bat (.+?)(?:[.!]|$)/i)?.[1];
     return { title: clean(match[1]), company: clean(company) };
   }
 
@@ -155,12 +168,28 @@ function isKnownJobDetailUrl(url: URL): boolean {
   );
 }
 
-function extractJobPostingUrl(email: JobEmail, title: string): string | null {
+export function extractJobPostingUrl(email: JobEmail, title: string): string | null {
   const normalizedTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const candidates = (email.links ?? []).flatMap((link) => {
     let url: URL;
+    let postingUrl = link.url.trim();
+    let appliedLinkedInJob = false;
     try {
       url = new URL(link.url);
+      if ((url.hostname === "linkedin.com" || url.hostname.endsWith(".linkedin.com"))) {
+        const jobId = url.pathname.match(/^\/(?:comm\/)?jobs\/view\/(\d+)\/?$/)?.[1];
+        if (jobId) {
+          postingUrl = `https://www.linkedin.com/jobs/view/${jobId}`;
+          appliedLinkedInJob = /(?:^|-)applied_jobs-/.test(url.searchParams.get("trk") ?? "");
+          url = new URL(postingUrl);
+        }
+      } else if (url.hostname === "apply.indeed.com" && url.pathname === "/indeedapply/confirmemail/viewjob") {
+        const destination = url.searchParams.get("next");
+        if (destination) {
+          url = new URL(destination);
+          postingUrl = url.href;
+        }
+      }
     } catch {
       return [];
     }
@@ -171,8 +200,8 @@ function extractJobPostingUrl(email: JobEmail, title: string): string | null {
     const labelled =
       /\b(?:view|see|open)\s+(?:the\s+)?job(?:\s+posting)?\b|\bjob\s+(?:posting|details)\b/i.test(link.text) ||
       (!textIsUrl && normalizedTitle.length >= 4 && normalizedText.includes(normalizedTitle));
-    const priority = labelled ? 2 : isKnownJobDetailUrl(url) ? 1 : 0;
-    return priority ? [{ url: link.url.trim(), priority }] : [];
+    const priority = appliedLinkedInJob ? 3 : labelled ? 2 : isKnownJobDetailUrl(url) ? 1 : 0;
+    return priority ? [{ url: postingUrl, priority }] : [];
   });
 
   const highestPriority = Math.max(0, ...candidates.map(({ priority }) => priority));

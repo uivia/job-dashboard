@@ -3,6 +3,7 @@ import type { ApplicationStatus } from "../domain";
 import { getGmailMessages, listGmailMessageIds } from "./client";
 import { parseJobEmail } from "./parser";
 import { getAppliedDateUpdates } from "./date-recovery";
+import { getJobPostingUrlUpdates } from "./link-recovery";
 import { decideSyncEvent, mergeAppliedAt, mergeJobPostingUrl, mergeTechStack, type ExistingApplication } from "./sync-plan";
 
 export type SyncResult = {
@@ -29,25 +30,34 @@ export async function syncJobEmails(accessToken: string): Promise<SyncResult> {
     ).map(({ messageId }) => messageId)
   );
   const pendingIds = messageIds.filter((messageId) => !processed.has(messageId));
-  const missingDates = await db.jobApplication.findMany({
-    where: { origin: "GMAIL", appliedAt: null },
+  const missingDetails = await db.jobApplication.findMany({
+    where: { origin: "GMAIL", OR: [{ appliedAt: null }, { jobPostingUrl: null }] },
     include: { processedEmails: { select: { messageId: true } } }
   });
-  const recoveryIds = [...new Set(missingDates.flatMap((application) => application.processedEmails.map(({ messageId }) => messageId)))];
-  // Share the existing Gmail request budget between date recovery and new mail.
+  const recoveryIds = [...new Set(missingDetails.flatMap((application) => application.processedEmails.map(({ messageId }) => messageId)))];
+  // Share the existing Gmail request budget between detail recovery and new mail.
   const recoveryBudget = Math.min(recoveryIds.length, Math.floor(MAX_EMAILS_PER_SYNC / 2));
-  // Rotate batches so emails without recoverable dates cannot block later jobs.
+  // Rotate batches so emails without recoverable details cannot block later jobs.
   const batchCount = Math.max(1, Math.ceil(recoveryIds.length / Math.max(1, recoveryBudget)));
   const offset = (Math.floor(Date.now() / 60_000) % batchCount) * recoveryBudget;
   const recovery = await getGmailMessages(accessToken, recoveryIds.slice(offset, offset + recoveryBudget));
   result.failed += recovery.failed;
-  for (const update of getAppliedDateUpdates(missingDates, recovery.emails)) {
-    await db.jobApplication.updateMany({
+  const recoveredIds = new Set<string>();
+  for (const update of getAppliedDateUpdates(missingDetails, recovery.emails)) {
+    const saved = await db.jobApplication.updateMany({
       where: { id: update.id, origin: "GMAIL", appliedAt: null },
       data: { appliedAt: update.appliedAt }
     });
-    result.updated++;
+    if (saved.count) recoveredIds.add(update.id);
   }
+  for (const update of getJobPostingUrlUpdates(missingDetails, recovery.emails)) {
+    const saved = await db.jobApplication.updateMany({
+      where: { id: update.id, origin: "GMAIL", jobPostingUrl: null },
+      data: { jobPostingUrl: update.jobPostingUrl }
+    });
+    if (saved.count) recoveredIds.add(update.id);
+  }
+  result.updated += recoveredIds.size;
   const fetched = await getGmailMessages(accessToken, pendingIds.slice(0, MAX_EMAILS_PER_SYNC - recoveryBudget));
   result.failed += fetched.failed;
   const emails = fetched.emails.sort(
