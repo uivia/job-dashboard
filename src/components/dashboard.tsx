@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/domain";
 import { PAGE_SIZES } from "@/lib/pagination";
+import { applicationListHref, parseStatusFilter } from "@/lib/status-filter";
 import { formatAppliedDate } from "@/lib/applied-date";
 import { createApplication, deleteApplication, syncGmail, updateApplication } from "@/app/actions";
 import { SignOutButton } from "./auth-buttons";
@@ -65,10 +66,11 @@ function ApplicationDate({ timestamp, label, now }: { timestamp: string | null; 
   );
 }
 
-export function Dashboard({ applications, user, totalApplications, page, pageSize, totalPages, referenceTime }: {
+export function Dashboard({ applications, user, totalApplications, statusFilter, page, pageSize, totalPages, referenceTime }: {
   applications: Application[];
   user: { name: string; image: string | null };
   totalApplications: number;
+  statusFilter: ApplicationStatus | null;
   page: number;
   pageSize: number;
   totalPages: number;
@@ -191,12 +193,31 @@ export function Dashboard({ applications, user, totalApplications, page, pageSiz
         {message && <div className="notice" role="status">{message}</div>}
 
         <section className="applications-panel" aria-label="Job applications">
-          <div className="panel-heading"><h2>Applications</h2><span>{totalApplications} total · Latest applied first</span></div>
+          <div className="panel-heading">
+            <h2>Applications</h2>
+            <label className="status-filter-control">
+              Status
+              <select
+                value={statusFilter ?? ""}
+                disabled={isPending}
+                onChange={(event) => {
+                  const status = parseStatusFilter(event.target.value);
+                  startTransition(() => router.push(applicationListHref({ status, pageSize })));
+                }}
+              >
+                <option value="">All statuses</option>
+                {APPLICATION_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
+              </select>
+            </label>
+            <span>{totalApplications} {statusFilter ? "matching" : "total"} · Latest applied first</span>
+          </div>
           {applications.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon" aria-hidden="true">↗</div>
-              <h2>No applications yet</h2>
-              <p>Sync Gmail to import recent applications, or add one manually.</p>
+              <h2>{statusFilter ? "No applications with this status" : "No applications yet"}</h2>
+              {statusFilter
+                ? <p><Link className="posting-link" href={applicationListHref({ status: null, pageSize })}>Clear filter</Link> to see all applications.</p>
+                : <p>Sync Gmail to import recent applications, or add one manually.</p>}
             </div>
           ) : (
             <>
@@ -238,17 +259,20 @@ export function Dashboard({ applications, user, totalApplications, page, pageSiz
               <nav className="pagination" aria-label="Application pages">
                 <label className="page-size-control">
                   Records per page
-                  <select value={pageSize} onChange={(event) => router.push(`/?pageSize=${event.target.value}`)} disabled={isPending}>
+                  <select value={pageSize} onChange={(event) => {
+                    const size = Number(event.target.value);
+                    startTransition(() => router.push(applicationListHref({ status: statusFilter, pageSize: size })));
+                  }} disabled={isPending}>
                     {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
                   </select>
                 </label>
                 <span>Page {page} of {totalPages}</span>
                 <div className="pagination-actions">
                   {page > 1
-                    ? <Link className="secondary-button" href={page === 2 ? `/?pageSize=${pageSize}` : `/?page=${page - 1}&pageSize=${pageSize}`}>Previous</Link>
+                    ? <Link className="secondary-button" href={applicationListHref({ status: statusFilter, pageSize, page: page - 1 })}>Previous</Link>
                     : <span className="secondary-button pagination-disabled" aria-disabled="true">Previous</span>}
                   {page < totalPages
-                    ? <Link className="secondary-button" href={`/?page=${page + 1}&pageSize=${pageSize}`}>Next</Link>
+                    ? <Link className="secondary-button" href={applicationListHref({ status: statusFilter, pageSize, page: page + 1 })}>Next</Link>
                     : <span className="secondary-button pagination-disabled" aria-disabled="true">Next</span>}
                 </div>
               </nav>
