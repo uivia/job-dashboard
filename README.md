@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Job Dashboard
 
 A private Next.js dashboard for tracking job applications from Gmail. It imports the last 90 days on demand, stores only extracted job data and Gmail IDs, and supports manual corrections.
@@ -35,4 +34,4 @@ A private Next.js dashboard for tracking job applications from Gmail. It imports
 - `npm run build` — generate Prisma Client and build Next.js
 =======
 # job-dashboard
->>>>>>> db562496b48e5c13992bf09e8fff48d14e012862
+
