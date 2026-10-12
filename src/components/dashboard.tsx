@@ -18,9 +18,10 @@ type Application = {
   status: ApplicationStatus;
   statusUpdatedAt: string;
   appliedAt: string | null;
+  updatedAt: string;
 };
 
-type EditorValue = Omit<Application, "id" | "statusUpdatedAt" | "appliedAt"> & { id: string | null };
+type EditorValue = Omit<Application, "id" | "statusUpdatedAt" | "appliedAt" | "updatedAt"> & { id: string | null };
 
 const STATUS_LABELS: Record<ApplicationStatus, string> = {
   APPLIED: "Applied",
@@ -53,11 +54,11 @@ function TechStack({ technologies }: { technologies: string[] }) {
   return <div className="tag-list">{technologies.map((technology) => <span className="tag" key={technology}>{technology}</span>)}</div>;
 }
 
-function AppliedDate({ appliedAt, now }: { appliedAt: string | null; now: Date }) {
-  const date = formatAppliedDate(appliedAt, now);
+function ApplicationDate({ timestamp, label, now }: { timestamp: string | null; label: string; now: Date }) {
+  const date = formatAppliedDate(timestamp, now);
   if (!date) return <span className="muted">Unknown</span>;
   return (
-    <time className="applied-date" dateTime={appliedAt!} tabIndex={0} aria-label={`Date applied: ${date.exact}`}>
+    <time className="applied-date" dateTime={timestamp!} tabIndex={0} aria-label={`${label}: ${date.exact}`}>
       {date.relative}
       <span className="date-tooltip" aria-hidden="true">{date.exact}</span>
     </time>
@@ -201,7 +202,7 @@ export function Dashboard({ applications, user, totalApplications, page, pageSiz
             <>
               <div className="table-wrap desktop-only">
                 <table>
-                  <thead><tr><th>Job title</th><th>Company</th><th>Tech stack</th><th>Job Posting URL</th><th>Date Applied</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Job title</th><th>Company</th><th>Tech stack</th><th>Job Posting URL</th><th>Date Applied</th><th>Updated At</th><th>Status</th></tr></thead>
                   <tbody>
                     {applications.map((application) => (
                       <tr key={application.id}>
@@ -211,7 +212,8 @@ export function Dashboard({ applications, user, totalApplications, page, pageSiz
                         <td>{application.jobPostingUrl
                           ? <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer">View job posting</a>
                           : <span className="muted">—</span>}</td>
-                        <td><AppliedDate appliedAt={application.appliedAt} now={now} /></td>
+                        <td><ApplicationDate timestamp={application.appliedAt} label="Date applied" now={now} /></td>
+                        <td><ApplicationDate timestamp={application.updatedAt} label="Updated at" now={now} /></td>
                         <td><StatusSelect application={application} onChange={(status) => changeStatus(application, status)} disabled={isPending} /></td>
                       </tr>
                     ))}
@@ -227,7 +229,8 @@ export function Dashboard({ applications, user, totalApplications, page, pageSiz
                       ? <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer">View job posting</a>
                       : <span className="muted">—</span>}
                     <TechStack technologies={application.techStack} />
-                    <div className="application-date"><span className="muted">Date Applied: </span><AppliedDate appliedAt={application.appliedAt} now={now} /></div>
+                    <div className="application-date"><span className="muted">Date Applied: </span><ApplicationDate timestamp={application.appliedAt} label="Date applied" now={now} /></div>
+                    <div className="application-date"><span className="muted">Updated At: </span><ApplicationDate timestamp={application.updatedAt} label="Updated at" now={now} /></div>
                     <StatusSelect application={application} onChange={(status) => changeStatus(application, status)} disabled={isPending} />
                   </article>
                 ))}
