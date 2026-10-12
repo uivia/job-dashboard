@@ -8,6 +8,7 @@ export type ExistingApplication = {
   status: ApplicationStatus;
   statusUpdatedAt: Date;
   appliedAt: Date | null;
+  jobPostingUrl: string | null;
   threadIds: string[];
 };
 
@@ -15,9 +16,14 @@ export function mergeTechStack(current: string[], incoming: string[]): string[] 
   return current.length ? current : incoming;
 }
 
+export function mergeJobPostingUrl(current: string | null, incoming: string | null): string | null {
+  return current ?? incoming;
+}
+
 export type SyncDecision =
   | { kind: "ADD" }
   | { kind: "UPDATE"; applicationId: string; status: ApplicationStatus }
+  | { kind: "ENRICH"; applicationId: string }
   | { kind: "IGNORE"; applicationId?: string; reason: "AMBIGUOUS_MATCH" | "MISSING_IDENTITY" | "STALE_STATUS" };
 
 const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
@@ -27,7 +33,10 @@ export function normalizeIdentity(value: string): string {
 }
 
 function decisionForMatch(event: ParsedJobEvent, application: ExistingApplication): SyncDecision {
-  if (event.receivedAt < application.statusUpdatedAt) return { kind: "IGNORE", applicationId: application.id, reason: "STALE_STATUS" };
+  if (event.receivedAt < application.statusUpdatedAt) {
+    if (!application.jobPostingUrl && event.jobPostingUrl) return { kind: "ENRICH", applicationId: application.id };
+    return { kind: "IGNORE", applicationId: application.id, reason: "STALE_STATUS" };
+  }
   return {
     kind: "UPDATE",
     applicationId: application.id,

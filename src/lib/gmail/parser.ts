@@ -6,6 +6,7 @@ export type JobEmail = {
   from: string;
   subject: string;
   text: string;
+  links?: Array<{ url: string; text: string }>;
   receivedAt: Date;
 };
 
@@ -31,7 +32,7 @@ function clean(value: string | undefined): string {
     .replace(/%%str_to_replace_open_tracking%%/gi, " ")
     .replace(/[\u034f\u200b-\u200d\u2060\ufeff]/g, "")
     .replace(/\s+/g, " ")
-    .replace(/^[\s:|\-â€“â€”]+|[\s|\-â€“â€”]+$/g, "")
+    .replace(/^[\s:|\-–—]+|[\s|\-–—]+$/g, "")
     .trim();
 }
 
@@ -98,12 +99,56 @@ function extractTitleAndCompany(email: JobEmail): { title: string; company: stri
   match = subject.match(/^Job Offer:\s*(.+?)\s*\|\s*(.+)$/i);
   if (match) return { title: clean(match[1]), company: clean(match[2]) };
 
-  match = subject.match(/(?:interview|assessment|offer).{0,30}(?:for|[-â€“â€”])\s*(.+?)(?:\s+at\s+(.+))?$/i);
+  match = subject.match(/(?:interview|assessment|offer).{0,30}(?:for|[-–—])\s*(.+?)(?:\s+at\s+(.+))?$/i);
   return { title: clean(match?.[1]), company: clean(match?.[2]) };
 }
 
 function extractTechStack(content: string): string[] {
   return TECHNOLOGIES.filter(([pattern]) => pattern.test(content)).map(([, name]) => name);
+}
+
+function isKnownJobDetailUrl(url: URL): boolean {
+  const host = url.hostname.toLowerCase();
+  const path = url.pathname.toLowerCase();
+  const on = (domain: string) => host === domain || host.endsWith(`.${domain}`);
+  const pathHasId = (prefix: string) => path.startsWith(prefix) && path.slice(prefix.length).split("/").some(Boolean);
+
+  return (
+    (on("linkedin.com") && pathHasId("/jobs/view/")) ||
+    (["indeed.com", "indeed.co.uk", "indeed.com.au", "indeed.ca"].some(on) &&
+      (path === "/viewjob" || path === "/rc/clk") && Boolean(url.searchParams.get("jk"))) ||
+    (["jobstreet.com", "jobstreet.com.ph", "jobstreet.com.sg", "jobstreet.com.my", "jobstreet.co.id"].some(on) &&
+      pathHasId("/job/")) ||
+    (["seek.com.au", "seek.co.nz"].some(on) && pathHasId("/job/")) ||
+    (on("jobs.lever.co") && path.split("/").filter(Boolean).length >= 2) ||
+    ((on("boards.greenhouse.io") || on("job-boards.greenhouse.io")) && /\/jobs\/[^/]+/.test(path)) ||
+    (on("myworkdayjobs.com") && /\/job\/.+/.test(path))
+  );
+}
+
+function extractJobPostingUrl(email: JobEmail, title: string): string | null {
+  const normalizedTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const candidates = (email.links ?? []).flatMap((link) => {
+    let url: URL;
+    try {
+      url = new URL(link.url);
+    } catch {
+      return [];
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") return [];
+
+    const normalizedText = link.text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const textIsUrl = link.text.trim() === link.url.trim();
+    const labelled =
+      /\b(?:view|see|open)\s+(?:the\s+)?job(?:\s+posting)?\b|\bjob\s+(?:posting|details)\b/i.test(link.text) ||
+      (!textIsUrl && normalizedTitle.length >= 4 && normalizedText.includes(normalizedTitle));
+    const priority = labelled ? 2 : isKnownJobDetailUrl(url) ? 1 : 0;
+    return priority ? [{ url: link.url.trim(), priority }] : [];
+  });
+
+  const highestPriority = Math.max(0, ...candidates.map(({ priority }) => priority));
+  const matches = [...new Set(candidates.filter(({ priority }) => priority === highestPriority).map(({ url }) => url))];
+  return matches.length === 1 ? matches[0] : null;
 }
 
 export function parseJobEmail(email: JobEmail): ParsedJobEvent | null {
@@ -123,5 +168,6 @@ export function parseJobEmail(email: JobEmail): ParsedJobEvent | null {
     company,
     techStack: extractTechStack(`${email.subject} ${email.text}`),
     status,
+    jobPostingUrl: extractJobPostingUrl(email, title)
   };
 }

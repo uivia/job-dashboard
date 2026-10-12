@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { decideSyncEvent, mergeTechStack, type ExistingApplication } from "../src/lib/gmail/sync-plan.ts";
+import { decideSyncEvent, mergeJobPostingUrl, mergeTechStack, type ExistingApplication } from "../src/lib/gmail/sync-plan.ts";
 import type { ParsedJobEvent } from "../src/lib/domain.ts";
 
 const existing: ExistingApplication = {
@@ -11,6 +11,7 @@ const existing: ExistingApplication = {
   status: "INTERVIEW",
   statusUpdatedAt: new Date("2026-09-24T08:00:00Z"),
   appliedAt: new Date("2026-09-01T08:00:00Z"),
+  jobPostingUrl: "https://example.com/jobs/python-engineer",
   threadIds: ["thread-1"]
 };
 
@@ -23,6 +24,7 @@ function event(overrides: Partial<ParsedJobEvent> = {}): ParsedJobEvent {
     company: "Acme",
     techStack: ["Python"],
     status: "OFFER",
+    jobPostingUrl: null,
     ...overrides
   };
 }
@@ -38,6 +40,17 @@ describe("decideSyncEvent", () => {
     assert.deepEqual(decision, { kind: "IGNORE", applicationId: "job-1", reason: "STALE_STATUS" });
   });
 
+  test("enriches a blank posting URL from a stale matched email without changing status", () => {
+    const decision = decideSyncEvent(
+      event({
+        receivedAt: new Date("2026-09-23T08:00:00Z"),
+        jobPostingUrl: "https://example.com/jobs/python-engineer"
+      }),
+      [{ ...existing, jobPostingUrl: null }]
+    );
+
+    assert.deepEqual(decision, { kind: "ENRICH", applicationId: "job-1" });
+  });
 
   test("adds a complete application when no record matches", () => {
     const decision = decideSyncEvent(event({ title: "React Developer", company: "Beta Labs", status: "APPLIED" }), [existing]);
@@ -78,3 +91,15 @@ describe("mergeTechStack", () => {
   });
 });
 
+describe("mergeJobPostingUrl", () => {
+  test("fills a blank posting URL from a later email", () => {
+    assert.equal(mergeJobPostingUrl(null, "https://example.com/jobs/engineer"), "https://example.com/jobs/engineer");
+  });
+
+  test("preserves an existing posting URL", () => {
+    assert.equal(
+      mergeJobPostingUrl("https://manual.example/jobs/engineer", "https://email.example/jobs/engineer"),
+      "https://manual.example/jobs/engineer"
+    );
+  });
+});

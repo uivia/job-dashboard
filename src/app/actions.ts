@@ -8,7 +8,7 @@ import { syncJobEmails, type SyncResult } from "@/lib/gmail/sync";
 import { requireOwner } from "@/lib/owner";
 import { parseApplicationInput } from "@/lib/validation";
 
-type RawInput = { title: string; company: string; techStack: string; status: string };
+type RawInput = { title: string; company: string; techStack: string; status: string; jobPostingUrl: string };
 
 export async function syncGmail(): Promise<SyncResult> {
   const session = await requireOwner();

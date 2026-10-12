@@ -2,7 +2,7 @@ import { db } from "../db";
 import type { ApplicationStatus } from "../domain";
 import { getGmailMessages, listGmailMessageIds } from "./client";
 import { parseJobEmail } from "./parser";
-import { decideSyncEvent, mergeTechStack, type ExistingApplication } from "./sync-plan";
+import { decideSyncEvent, mergeJobPostingUrl, mergeTechStack, type ExistingApplication } from "./sync-plan";
 
 export type SyncResult = {
   added: number;
@@ -43,6 +43,7 @@ export async function syncJobEmails(accessToken: string): Promise<SyncResult> {
     status: application.status as ApplicationStatus,
     statusUpdatedAt: application.statusUpdatedAt,
     appliedAt: application.appliedAt,
+    jobPostingUrl: application.jobPostingUrl,
     threadIds: application.processedEmails.flatMap(({ threadId }) => (threadId ? [threadId] : []))
   }));
 
@@ -64,6 +65,7 @@ export async function syncJobEmails(accessToken: string): Promise<SyncResult> {
           data: {
             title: event.title,
             company: event.company,
+            jobPostingUrl: event.jobPostingUrl,
             techStack: event.techStack,
             status: event.status,
             origin: "GMAIL",
@@ -88,19 +90,23 @@ export async function syncJobEmails(accessToken: string): Promise<SyncResult> {
           status: application.status as ApplicationStatus,
           statusUpdatedAt: application.statusUpdatedAt,
           appliedAt: application.appliedAt,
+          jobPostingUrl: application.jobPostingUrl,
           threadIds: event.threadId ? [event.threadId] : []
         });
         result.added++;
         continue;
       }
 
-      if (decision.kind === "UPDATE") {
+      if (decision.kind === "UPDATE" || decision.kind === "ENRICH") {
         const application = applications.find(({ id }) => id === decision.applicationId)!;
-        const techStack = mergeTechStack(application.techStack, event.techStack);
+        const techStack = decision.kind === "UPDATE" ? mergeTechStack(application.techStack, event.techStack) : application.techStack;
+        const jobPostingUrl = mergeJobPostingUrl(application.jobPostingUrl, event.jobPostingUrl);
         await db.$transaction([
           db.jobApplication.update({
             where: { id: decision.applicationId },
-            data: { status: decision.status, statusUpdatedAt: event.receivedAt, techStack }
+            data: decision.kind === "UPDATE"
+              ? { status: decision.status, statusUpdatedAt: event.receivedAt, techStack, jobPostingUrl }
+              : { jobPostingUrl }
           }),
           db.processedEmail.create({
             data: {
@@ -118,6 +124,7 @@ export async function syncJobEmails(accessToken: string): Promise<SyncResult> {
           application.statusUpdatedAt = event.receivedAt;
           application.techStack = techStack;
         }
+        application.jobPostingUrl = jobPostingUrl;
         if (event.threadId && !application.threadIds.includes(event.threadId)) application.threadIds.push(event.threadId);
         result.updated++;
         continue;

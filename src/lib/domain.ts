@@ -15,6 +15,7 @@ export type JobApplicationInput = {
   company: string;
   techStack: string[];
   status: ApplicationStatus;
+  jobPostingUrl: string | null;
 };
 
 export type ParsedJobEvent = JobApplicationInput & {

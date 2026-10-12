@@ -50,6 +50,26 @@ function htmlToText(html: string): string {
     .trim();
 }
 
+function linksFromHtml(html: string): Array<{ url: string; text: string }> {
+  const links: Array<{ url: string; text: string }> = [];
+  const anchors = /<a\b[^>]*\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a>/gi;
+  for (const match of html.matchAll(anchors)) {
+    const url = decodeHtmlEntities(match[1] ?? match[2] ?? "").trim();
+    if (url) links.push({ url, text: htmlToText(match[3]) });
+  }
+  return links;
+}
+
+function linksFromText(text: string): Array<{ url: string; text: string }> {
+  return text.split(/\r?\n/).flatMap((line) =>
+    [...line.matchAll(/https?:\/\/[^\s<>"']+/gi)].map(([match]) => {
+      const url = match.replace(/[),.;!?]+$/, "");
+      const label = line.replace(match, " ").replace(/\s+/g, " ").trim();
+      return { url, text: label || url };
+    })
+  );
+}
+
 function collectParts(part: GmailPart | undefined, texts: string[], html: string[]): void {
   if (!part) return;
   if (part.body?.data) {
@@ -66,6 +86,8 @@ export function decodeGmailMessage(message: GmailMessage): JobEmail {
   const html: string[] = [];
   collectParts(message.payload, texts, html);
   const body = texts.join("\n").trim() || htmlToText(html.join("\n")) || message.snippet || "";
+  const links = [...html.flatMap(linksFromHtml), ...texts.flatMap(linksFromText)]
+    .filter((link, index, all) => all.findIndex(({ url }) => url === link.url) === index);
 
   return {
     messageId: message.id,
@@ -73,6 +95,7 @@ export function decodeGmailMessage(message: GmailMessage): JobEmail {
     receivedAt: new Date(Number(message.internalDate ?? Date.now())),
     from: headers.get("from") ?? "",
     subject: headers.get("subject") ?? "",
+    links,
     text: body
       .replace(/\r\n?/g, "\n")
       .replace(/[^\S\n]+/g, " ")

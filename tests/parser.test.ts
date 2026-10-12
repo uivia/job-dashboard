@@ -51,10 +51,108 @@ describe("parseJobEmail", () => {
     assert.equal(event?.company, "Acme Inc");
   });
 
+  test("extracts a uniquely labelled job posting link", () => {
+    const event = parseJobEmail({
+      messageId: "m-labelled-link",
+      threadId: "t-labelled-link",
+      from: "Recruiting <jobs@acme.example>",
+      subject: "Your application for Engineer at Acme",
+      text: "We received your application.",
+      links: [
+        { url: "https://acme.example/privacy", text: "Privacy" },
+        { url: "https://acme.example/jobs/engineer", text: "View job posting" }
+      ],
+      receivedAt: new Date("2026-10-05T01:18:11Z")
+    });
 
+    assert.equal(event?.jobPostingUrl, "https://acme.example/jobs/engineer");
+  });
 
+  test("extracts a recognized job-detail URL without descriptive link text", () => {
+    const event = parseJobEmail({
+      messageId: "m-known-link",
+      threadId: "t-known-link",
+      from: "LinkedIn <jobs-noreply@linkedin.com>",
+      subject: "Your application for Engineer at Acme",
+      text: "We received your application.",
+      links: [{
+        url: "https://www.linkedin.com/jobs/view/12345",
+        text: "https://www.linkedin.com/jobs/view/12345"
+      }],
+      receivedAt: new Date("2026-10-05T01:18:11Z")
+    });
 
+    assert.equal(event?.jobPostingUrl, "https://www.linkedin.com/jobs/view/12345");
+  });
 
+  test("accepts supported job-provider detail URLs", async (context) => {
+    const urls = [
+      "https://ph.indeed.com/viewjob?jk=abc123",
+      "https://ph.jobstreet.com/job/12345",
+      "https://www.seek.com.au/job/12345",
+      "https://jobs.lever.co/acme/abc123",
+      "https://boards.greenhouse.io/acme/jobs/12345",
+      "https://acme.wd5.myworkdayjobs.com/en-US/jobs/job/Manila/Engineer_R123"
+    ];
+
+    for (const url of urls) {
+      await context.test(url, () => {
+        const event = parseJobEmail({
+          messageId: url,
+          threadId: null,
+          from: "Recruiting <jobs@example.com>",
+          subject: "Your application for Engineer at Acme",
+          text: "We received your application.",
+          links: [{ url, text: url }],
+          receivedAt: new Date("2026-10-05T01:18:11Z")
+        });
+
+        assert.equal(event?.jobPostingUrl, url);
+      });
+    }
+  });
+
+  test("rejects lookalike provider domains and incomplete detail routes", () => {
+    const urls = [
+      "https://evilindeed.com/viewjob?jk=abc123",
+      "https://eviljobstreet.com/job/12345",
+      "https://evilseek.com/job/12345",
+      "https://notmyworkdayjobs.com/job/Engineer_R123",
+      "https://www.linkedin.com/jobs/view/",
+      "https://boards.greenhouse.io/acme/jobs/"
+    ];
+
+    for (const url of urls) {
+      const event = parseJobEmail({
+        messageId: url,
+        threadId: null,
+        from: "Recruiting <jobs@example.com>",
+        subject: "Your application for Engineer at Acme",
+        text: "We received your application.",
+        links: [{ url, text: url }],
+        receivedAt: new Date("2026-10-05T01:18:11Z")
+      });
+
+      assert.equal(event?.jobPostingUrl, null, url);
+    }
+  });
+
+  test("leaves the posting URL blank when equally strong candidates are ambiguous", () => {
+    const event = parseJobEmail({
+      messageId: "m-ambiguous-links",
+      threadId: "t-ambiguous-links",
+      from: "Recruiting <jobs@acme.example>",
+      subject: "Your application for Engineer at Acme",
+      text: "We received your application.",
+      links: [
+        { url: "https://acme.example/jobs/engineer", text: "View job" },
+        { url: "https://acme.example/jobs/engineer-2", text: "Job details" }
+      ],
+      receivedAt: new Date("2026-10-05T01:18:11Z")
+    });
+
+    assert.equal(event?.jobPostingUrl, null);
+  });
 
   test("does not treat ordinary next-step prose as Next.js", () => {
     const event = parseJobEmail({

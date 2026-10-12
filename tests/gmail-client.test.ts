@@ -57,9 +57,43 @@ describe("Gmail client helpers", () => {
     });
 
     assert.equal(email.text, "Application received View job");
+    assert.deepEqual(email.links, [{
+      url: "https://example.com/jobs/123?from=email&source=confirmation",
+      text: "View job"
+    }]);
   });
 
+  test("collects HTTP links from plain-text messages", () => {
+    const email = decodeGmailMessage({
+      id: "m-plain-link",
+      payload: {
+        headers: [],
+        mimeType: "text/plain",
+        body: { data: encode("View the role at https://www.linkedin.com/jobs/view/12345.") }
+      }
+    });
 
+    assert.deepEqual(email.links, [{
+      url: "https://www.linkedin.com/jobs/view/12345",
+      text: "View the role at"
+    }]);
+  });
+
+  test("preserves the same-line label for a plain-text URL", () => {
+    const email = decodeGmailMessage({
+      id: "m-labelled-plain-link",
+      payload: {
+        headers: [],
+        mimeType: "text/plain",
+        body: { data: encode("View job posting: https://careers.acme.example/jobs/123") }
+      }
+    });
+
+    assert.deepEqual(email.links, [{
+      url: "https://careers.acme.example/jobs/123",
+      text: "View job posting:"
+    }]);
+  });
 
   test("paginates through more than one thousand matching messages", async () => {
     let page = 0;

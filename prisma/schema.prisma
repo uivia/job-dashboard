@@ -33,6 +33,7 @@ model JobApplication {
   id              String             @id @default(cuid())
   title           String
   company         String
+  jobPostingUrl   String?
   techStack       String[]
   status          ApplicationStatus  @default(APPLIED)
   origin          ApplicationOrigin

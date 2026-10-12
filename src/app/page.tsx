@@ -27,6 +27,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         id: application.id,
         title: application.title,
         company: application.company,
+        jobPostingUrl: application.jobPostingUrl,
         techStack: application.techStack,
         status: application.status,
         statusUpdatedAt: application.statusUpdatedAt.toISOString()

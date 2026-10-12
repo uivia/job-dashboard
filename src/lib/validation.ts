@@ -5,6 +5,7 @@ type RawApplicationInput = {
   company?: unknown;
   techStack?: unknown;
   status?: unknown;
+  jobPostingUrl?: unknown;
 };
 
 function requiredText(value: unknown, message: string): string {
@@ -29,5 +30,18 @@ export function parseApplicationInput(input: RawApplicationInput): JobApplicatio
       return true;
     });
 
-  return { title, company, techStack, status: input.status as ApplicationStatus };
+  const jobPostingUrl = typeof input.jobPostingUrl === "string" ? input.jobPostingUrl.trim() : "";
+  if (jobPostingUrl) {
+    let protocol: string;
+    try {
+      protocol = new URL(jobPostingUrl).protocol;
+    } catch {
+      throw new Error("Job posting URL must be a valid URL");
+    }
+    if (protocol !== "http:" && protocol !== "https:") {
+      throw new Error("Job posting URL must use HTTP or HTTPS");
+    }
+  }
+
+  return { title, company, techStack, status: input.status as ApplicationStatus, jobPostingUrl: jobPostingUrl || null };
 }

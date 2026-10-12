@@ -11,6 +11,7 @@ type Application = {
   id: string;
   title: string;
   company: string;
+  jobPostingUrl: string | null;
   techStack: string[];
   status: ApplicationStatus;
   statusUpdatedAt: string;
@@ -28,7 +29,7 @@ const STATUS_LABELS: Record<ApplicationStatus, string> = {
   WITHDRAWN: "Withdrawn"
 };
 
-const blankApplication: EditorValue = { id: null, title: "", company: "", techStack: [], status: "APPLIED" };
+const blankApplication: EditorValue = { id: null, title: "", company: "", jobPostingUrl: null, techStack: [], status: "APPLIED" };
 
 function StatusSelect({ application, onChange, disabled }: { application: Application; onChange: (status: ApplicationStatus) => void; disabled: boolean }) {
   return (
@@ -83,6 +84,7 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
     run(() => updateApplication(application.id, {
       title: application.title,
       company: application.company,
+      jobPostingUrl: application.jobPostingUrl ?? "",
       techStack: application.techStack.join(", "),
       status
     }));
@@ -102,9 +104,9 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
           return;
         }
         setMessage(
-          `${result.added} added Â· ${result.updated} updated Â· ${result.ignored} ignored${
-            result.failed ? ` Â· ${result.failed} failed` : ""
-          }${result.remaining ? ` Â· ${result.remaining} remaining; sync again after one minute` : ""}`
+          `${result.added} added · ${result.updated} updated · ${result.ignored} ignored${
+            result.failed ? ` · ${result.failed} failed` : ""
+          }${result.remaining ? ` · ${result.remaining} remaining; sync again after one minute` : ""}`
         );
         router.refresh();
       } catch {
@@ -119,6 +121,7 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
     const input = {
       title: String(formData.get("title") ?? ""),
       company: String(formData.get("company") ?? ""),
+      jobPostingUrl: String(formData.get("jobPostingUrl") ?? ""),
       techStack: String(formData.get("techStack") ?? ""),
       status: String(formData.get("status") ?? "APPLIED")
     };
@@ -156,7 +159,7 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
             <h1>Jobs applied</h1>            
           </div>
           <div className="hero-actions">
-            <button className="secondary-button" type="button" onClick={handleSync} disabled={isPending}>{isPending ? "Workingâ€¦" : "Sync Gmail"}</button>
+            <button className="secondary-button" type="button" onClick={handleSync} disabled={isPending}>{isPending ? "Working…" : "Sync Gmail"}</button>
             <button className="primary-button" type="button" onClick={() => setEditor(blankApplication)}>Add job</button>
           </div>
         </div>
@@ -167,7 +170,7 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
           <div className="panel-heading"><h2>Applications</h2><span>{totalApplications} total</span></div>
           {applications.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon" aria-hidden="true">â†—</div>
+              <div className="empty-icon" aria-hidden="true">↗</div>
               <h2>No applications yet</h2>
               <p>Sync Gmail to import recent applications, or add one manually.</p>
             </div>
@@ -175,13 +178,16 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
             <>
               <div className="table-wrap desktop-only">
                 <table>
-                  <thead><tr><th>Job title</th><th>Company</th><th>Tech stack</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Job title</th><th>Company</th><th>Tech stack</th><th>Job Posting URL</th><th>Status</th></tr></thead>
                   <tbody>
                     {applications.map((application) => (
                       <tr key={application.id}>
                         <td><button className="job-link" onClick={() => setEditor({ ...application })}>{application.title}</button></td>
                         <td>{application.company}</td>
                         <td><TechStack technologies={application.techStack} /></td>
+                        <td>{application.jobPostingUrl
+                          ? <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer">View job posting</a>
+                          : <span className="muted">—</span>}</td>
                         <td><StatusSelect application={application} onChange={(status) => changeStatus(application, status)} disabled={isPending} /></td>
                       </tr>
                     ))}
@@ -193,6 +199,9 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
                   <article className="application-card" key={application.id}>
                     <button className="job-link" onClick={() => setEditor({ ...application })}>{application.title}</button>
                     <p>{application.company}</p>
+                    {application.jobPostingUrl
+                      ? <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer">View job posting</a>
+                      : <span className="muted">—</span>}
                     <TechStack technologies={application.techStack} />
                     <StatusSelect application={application} onChange={(status) => changeStatus(application, status)} disabled={isPending} />
                   </article>
@@ -219,17 +228,18 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
           <form action={saveEditor}>
             <div className="dialog-heading">
               <div><p className="eyebrow">{editor.id ? "EDIT APPLICATION" : "NEW APPLICATION"}</p><h2>{editor.id ? editor.title : "Add a job"}</h2></div>
-              <button className="close-button" type="button" aria-label="Close" onClick={() => setEditor(null)}>Ã—</button>
+              <button className="close-button" type="button" aria-label="Close" onClick={() => setEditor(null)}>×</button>
             </div>
             <label>Job title<input name="title" defaultValue={editor.title} required autoFocus /></label>
             <label>Company<input name="company" defaultValue={editor.company} required /></label>
+            <label>Job posting URL<input name="jobPostingUrl" type="url" defaultValue={editor.jobPostingUrl ?? ""} placeholder="https://example.com/jobs/123" /></label>
             <label>Tech stack<input name="techStack" defaultValue={editor.techStack.join(", ")} placeholder="Python, React, PostgreSQL" /></label>
             <label>Status<select name="status" defaultValue={editor.status}>{APPLICATION_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}</select></label>
             <div className="dialog-actions">
               {editor.id && <button className="danger-button" type="button" onClick={removeApplication} disabled={isPending}>Delete</button>}
               <span />
               <button className="secondary-button" type="button" onClick={() => setEditor(null)}>Cancel</button>
-              <button className="primary-button" type="submit" disabled={isPending}>{isPending ? "Savingâ€¦" : "Save"}</button>
+              <button className="primary-button" type="submit" disabled={isPending}>{isPending ? "Saving…" : "Save"}</button>
             </div>
           </form>
         )}
