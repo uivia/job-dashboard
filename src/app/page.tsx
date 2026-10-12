@@ -35,6 +35,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         techStack: application.techStack,
         status: application.status,
         appliedAt: application.appliedAt?.toISOString() ?? null,
+        updatedAt: application.updatedAt.toISOString(),
         statusUpdatedAt: application.statusUpdatedAt.toISOString()
       }))}
     />

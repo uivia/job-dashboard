@@ -53,14 +53,15 @@ button:disabled { cursor: wait; opacity: .6; }
 .panel-heading h2 { margin: 0; font: 24px Georgia, serif; }
 .panel-heading span { color: var(--muted); font-size: 13px; }
 .table-wrap { overflow-x: auto; }
-table { width: 100%; min-width: 1050px; table-layout: fixed; border-collapse: collapse; }
-th:nth-child(1) { width: 22%; }
-th:nth-child(2) { width: 17%; }
-th:nth-child(3) { width: 17%; }
-th:nth-child(4) { width: 16%; }
-th:nth-child(5) { width: 13%; }
-th:nth-child(6) { width: 15%; }
-th, td { padding: 18px 26px; border-bottom: 1px solid #edf0ed; text-align: left; vertical-align: middle; }
+table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+th:nth-child(1) { width: 19%; }
+th:nth-child(2) { width: 15%; }
+th:nth-child(3) { width: 15%; }
+th:nth-child(4) { width: 14%; }
+th:nth-child(5) { width: 11%; }
+th:nth-child(6) { width: 11%; }
+th:nth-child(7) { width: 15%; }
+th, td { padding: 18px 12px; border-bottom: 1px solid #edf0ed; text-align: left; vertical-align: middle; }
 td { overflow-wrap: anywhere; }
 th { color: var(--muted); background: #fafbfa; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; }
 tbody tr:last-child td { border-bottom: 0; }
@@ -105,12 +106,7 @@ tbody tr:hover { background: #fbfcfb; }
 .editor-dialog input:focus, .editor-dialog select:focus { outline: 3px solid #d6ebe0; border-color: var(--green); }
 .dialog-actions { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; margin-top: 6px; }
 
-@media (max-width: 720px) {
-  .topbar { padding: 0 18px; }
-  .dashboard-content { width: min(100% - 28px, 1180px); padding: 44px 0; }
-  .hero-row { align-items: stretch; flex-direction: column; }
-  .hero-row h1 { font-size: 42px; }
-  .hero-actions > button { flex: 1; }
+@media (max-width: 1024px) {
   .desktop-only { display: none; }
   .mobile-only { display: grid; }
   .mobile-list { gap: 0; }
@@ -118,6 +114,14 @@ tbody tr:hover { background: #fbfcfb; }
   .application-card:last-child { border-bottom: 0; }
   .application-card p { margin: -6px 0 0; color: var(--muted); }
   .application-card .status-select { width: 100%; margin-top: 4px; }
+}
+
+@media (max-width: 720px) {
+  .topbar { padding: 0 18px; }
+  .dashboard-content { width: min(100% - 28px, 1180px); padding: 44px 0; }
+  .hero-row { align-items: stretch; flex-direction: column; }
+  .hero-row h1 { font-size: 42px; }
+  .hero-actions > button { flex: 1; }
   .pagination { padding: 16px 20px; }
   .signin-card { padding: 36px 26px; }
   .dialog-actions { grid-template-columns: 1fr 1fr; }
