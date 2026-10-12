@@ -10,11 +10,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const ownerEmail = process.env.DASHBOARD_OWNER_EMAIL?.toLowerCase();
   if (!session?.user?.email || session.user.email.toLowerCase() !== ownerEmail) redirect("/signin");
 
+  const now = new Date();
   const totalApplications = await db.jobApplication.count();
   const params = await searchParams;
   const pagination = getPagination(params.page, totalApplications, params.pageSize);
   const applications = await db.jobApplication.findMany({
-    orderBy: [{ statusUpdatedAt: "desc" }, { id: "desc" }],
+    orderBy: [{ appliedAt: { sort: "desc", nulls: "last" } }, { id: "desc" }],
     skip: pagination.skip,
     take: pagination.pageSize
   });
@@ -25,7 +26,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       page={pagination.page}
       pageSize={pagination.pageSize}
       totalPages={pagination.totalPages}
-      referenceTime={new Date().toISOString()}
+      referenceTime={now.toISOString()}
       applications={applications.map((application) => ({
         id: application.id,
         title: application.title,

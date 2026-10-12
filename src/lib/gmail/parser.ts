@@ -54,6 +54,35 @@ function statusFrom(subject: string, text: string): ApplicationStatus | null {
   return null;
 }
 
+export function extractAppliedAt(email: JobEmail): Date | null {
+  const content = `${email.subject} ${email.text}`
+    .replace(/[\u034f\u200b-\u200d\u2060\ufeff]/g, "")
+    .replace(/(\bapplied on\s+)(\d(?:\s*\d)?)\s+([a-z](?:\s+[a-z]){2})(?=\s|$)/gi,
+      (_, label: string, day: string, month: string) => `${label}${day.replace(/\s/g, "")} ${month.replace(/\s/g, "")}`);
+  const match = content.match(/\b(?:applied on|date applied|application (?:date|submitted on))\s*:?\s*(?:(\d{1,2})\s+([a-z]+)|([a-z]+)\s+(\d{1,2}))(?:,?\s+(\d{4}))?\b/i);
+  if (match) {
+    const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const month = months.indexOf((match[2] ?? match[3]).toLowerCase().slice(0, 3));
+    const day = Number(match[1] ?? match[4]);
+    const receivedLocal = new Date(email.receivedAt.getTime() + 8 * 60 * 60 * 1000);
+    let year = Number(match[5] ?? receivedLocal.getUTCFullYear());
+    const dateForYear = () => new Date(Date.UTC(year, month, day) - 8 * 60 * 60 * 1000);
+    let date = dateForYear();
+    if (!match[5] && date > email.receivedAt) {
+      year--;
+      date = dateForYear();
+    }
+    const local = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+    if (month < 0 || local.getUTCFullYear() !== year || local.getUTCMonth() !== month || local.getUTCDate() !== day || date > email.receivedAt) return null;
+    return date;
+  }
+  const status = statusFrom(email.subject, email.text);
+  const receiptSubject = /\bapplication received\b|\bconfirmation of application\b|\bthanks for (?:completing your application|applying)\b/i.test(email.subject);
+  const confirmsReceipt = /application went through successfully|we(?:['’]ve| have)? (?:successfully )?received your .{0,100}application/i.test(content);
+  if (status === "REJECTED" || status === "WITHDRAWN" || status === "OFFER") return null;
+  return status === "APPLIED" || receiptSubject || (status === "SCREENING" && confirmsReceipt) ? email.receivedAt : null;
+}
+
 function extractTitleAndCompany(email: JobEmail): { title: string; company: string } {
   const { subject, text } = email;
   let match = subject.match(/^Application update for (.+?) at (.+)$/i);
@@ -164,6 +193,7 @@ export function parseJobEmail(email: JobEmail): ParsedJobEvent | null {
     messageId: email.messageId,
     threadId: email.threadId,
     receivedAt: email.receivedAt,
+    appliedAt: extractAppliedAt(email),
     title,
     company,
     techStack: extractTechStack(`${email.subject} ${email.text}`),

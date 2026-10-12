@@ -17,6 +17,7 @@ describe("parseJobEmail", () => {
       messageId: "m1",
       threadId: "t1",
       receivedAt: new Date("2026-10-05T01:22:27Z"),
+      appliedAt: new Date("2026-10-05T01:22:27Z"),
       title: "Full Stack Developer",
       company: "VST ECS Phils Inc",
       techStack: [],

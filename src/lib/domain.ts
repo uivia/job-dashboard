@@ -22,5 +22,6 @@ export type ParsedJobEvent = JobApplicationInput & {
   messageId: string;
   threadId: string | null;
   receivedAt: Date;
+  appliedAt?: Date | null;
 };
 
