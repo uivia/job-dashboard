@@ -190,7 +190,7 @@ export function Dashboard({ applications, user, totalApplications, page, pageSiz
         {message && <div className="notice" role="status">{message}</div>}
 
         <section className="applications-panel" aria-label="Job applications">
-          <div className="panel-heading"><h2>Applications</h2><span>{totalApplications} total</span></div>
+          <div className="panel-heading"><h2>Applications</h2><span>{totalApplications} total · Latest applied first</span></div>
           {applications.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon" aria-hidden="true">↗</div>
