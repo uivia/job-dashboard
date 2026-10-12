@@ -68,7 +68,13 @@ tbody tr:hover { background: #fbfcfb; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag { padding: 5px 8px; border: 1px solid #dce5df; border-radius: 999px; color: #3b5b49; background: #f3f8f5; font-size: 12px; }
 .muted { color: var(--muted); font-size: 13px; }
-.applied-date { white-space: nowrap; font-size: 13px; cursor: help; }
+.applied-date { position: relative; display: inline-block; white-space: nowrap; font-size: 13px; cursor: help; }
+.date-tooltip { position: absolute; bottom: calc(100% + 8px); left: 50%; z-index: 1; padding: 7px 10px; border-radius: 7px; color: white; background: var(--ink); box-shadow: 0 4px 12px rgba(31,49,39,.15); font-size: 12px; pointer-events: none; visibility: hidden; opacity: 0; transform: translate(-50%, 4px); transition: opacity 150ms ease-out, transform 150ms ease-out, visibility 150ms; }
+.applied-date:hover .date-tooltip, .applied-date:focus-visible .date-tooltip { visibility: visible; opacity: 1; transform: translate(-50%, 0); }
+.applied-date:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .date-tooltip { transition: none; transform: translateX(-50%); }
+}
 .status-select { min-width: 120px; padding: 8px 28px 8px 10px; border: 1px solid transparent; border-radius: 999px; font-weight: 700; font-size: 12px; }
 .status-applied, .status-screening { color: #38566c; background: #eaf1f6; }
 .status-interview, .status-assessment { color: #79550f; background: #fff3d6; }
