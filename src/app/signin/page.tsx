@@ -11,7 +11,7 @@ export default async function SignInPage() {
     <main className="signin-shell">
       <section className="signin-card">
         <div className="brand-mark" aria-hidden="true">J</div>
-        <p className="eyebrow">PRIVATE WORKSPACE</p>
+        <p className="eyebrow">ROLE LOG · PRIVATE WORKSPACE</p>
         <h1>Your next role,<br />organized.</h1>
         <p>Sign in with the Google account you use for job applications.</p>
         <SignInButton />

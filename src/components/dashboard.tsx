@@ -162,7 +162,7 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
   return (
     <main className="dashboard-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark small">J</span><span>Job Dashboard</span></div>
+        <div className="brand"><span className="brand-mark small" aria-hidden="true">{user.name.charAt(0) || "J"}<span className="brand-dot" /></span><span>Role log</span></div>
         <div className="account">
           {user.image ? <img src={user.image} alt="" referrerPolicy="no-referrer" /> : <span className="avatar-fallback">{user.name.charAt(0)}</span>}
           <SignOutButton />
@@ -172,8 +172,8 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
       <section className="dashboard-content">
         <div className="hero-row">
           <div>
-            <p className="eyebrow">APPLICATION TRACKER</p>
-            <h1>Jobs applied</h1>            
+            <p className="eyebrow">{user.name.split(" ")[0] || "My"}{user.name ? "’s" : ""} workspace</p>
+            <h1>My job search<span className="heading-dot">.</span></h1>
           </div>
           <div className="hero-actions">
             <button className="secondary-button" type="button" onClick={handleSync} disabled={isPending}>{isPending ? "Working…" : "Sync Gmail"}</button>
@@ -187,7 +187,7 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
           <div className="applications-toolbar">
             <div className="applications-summary">
               <div className="applications-title">
-                <h2>Applications</h2>
+                <h2>Application log</h2>
                 <span className="application-count" aria-label={`${totalApplications} ${statusFilter ? "matching" : "total"} applications`}>{totalApplications}</span>
               </div>
               <p>{statusFilter ? `${STATUS_LABELS[statusFilter]} applications` : "All your applications"} <span aria-hidden="true">·</span> Latest applied first</p>
