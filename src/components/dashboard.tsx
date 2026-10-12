@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/domain";
+import { PAGE_SIZES } from "@/lib/pagination";
 import { createApplication, deleteApplication, syncGmail, updateApplication } from "@/app/actions";
 import { SignOutButton } from "./auth-buttons";
 
@@ -50,11 +51,12 @@ function TechStack({ technologies }: { technologies: string[] }) {
   return <div className="tag-list">{technologies.map((technology) => <span className="tag" key={technology}>{technology}</span>)}</div>;
 }
 
-export function Dashboard({ applications, user, totalApplications, page, totalPages }: {
+export function Dashboard({ applications, user, totalApplications, page, pageSize, totalPages }: {
   applications: Application[];
   user: { name: string; image: string | null };
   totalApplications: number;
   page: number;
+  pageSize: number;
   totalPages: number;
 }) {
   const router = useRouter();
@@ -208,13 +210,19 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
                 ))}
               </div>
               <nav className="pagination" aria-label="Application pages">
+                <label className="page-size-control">
+                  Records per page
+                  <select value={pageSize} onChange={(event) => router.push(`/?pageSize=${event.target.value}`)} disabled={isPending}>
+                    {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+                  </select>
+                </label>
                 <span>Page {page} of {totalPages}</span>
                 <div className="pagination-actions">
                   {page > 1
-                    ? <Link className="secondary-button" href={page === 2 ? "/" : `/?page=${page - 1}`}>Previous</Link>
+                    ? <Link className="secondary-button" href={page === 2 ? `/?pageSize=${pageSize}` : `/?page=${page - 1}&pageSize=${pageSize}`}>Previous</Link>
                     : <span className="secondary-button pagination-disabled" aria-disabled="true">Previous</span>}
                   {page < totalPages
-                    ? <Link className="secondary-button" href={`/?page=${page + 1}`}>Next</Link>
+                    ? <Link className="secondary-button" href={`/?page=${page + 1}&pageSize=${pageSize}`}>Next</Link>
                     : <span className="secondary-button pagination-disabled" aria-disabled="true">Next</span>}
                 </div>
               </nav>
