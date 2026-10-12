@@ -155,7 +155,7 @@ function isKnownJobDetailUrl(url: URL): boolean {
   );
 }
 
-function extractJobPostingUrl(email: JobEmail, title: string): string | null {
+export function extractJobPostingUrl(email: JobEmail, title: string): string | null {
   const normalizedTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const candidates = (email.links ?? []).flatMap((link) => {
     let url: URL;
