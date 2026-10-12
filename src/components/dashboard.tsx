@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/domain";
 import { PAGE_SIZES } from "@/lib/pagination";
+import { formatAppliedDate } from "@/lib/applied-date";
 import { createApplication, deleteApplication, syncGmail, updateApplication } from "@/app/actions";
 import { SignOutButton } from "./auth-buttons";
 
@@ -16,9 +17,10 @@ type Application = {
   techStack: string[];
   status: ApplicationStatus;
   statusUpdatedAt: string;
+  appliedAt: string | null;
 };
 
-type EditorValue = Omit<Application, "id" | "statusUpdatedAt"> & { id: string | null };
+type EditorValue = Omit<Application, "id" | "statusUpdatedAt" | "appliedAt"> & { id: string | null };
 
 const STATUS_LABELS: Record<ApplicationStatus, string> = {
   APPLIED: "Applied",
@@ -51,19 +53,33 @@ function TechStack({ technologies }: { technologies: string[] }) {
   return <div className="tag-list">{technologies.map((technology) => <span className="tag" key={technology}>{technology}</span>)}</div>;
 }
 
-export function Dashboard({ applications, user, totalApplications, page, pageSize, totalPages }: {
+function AppliedDate({ appliedAt, now }: { appliedAt: string | null; now: Date }) {
+  const date = formatAppliedDate(appliedAt, now);
+  if (!date) return <span className="muted">Unknown</span>;
+  return <time className="applied-date" dateTime={appliedAt!} title={date.exact} aria-label={`Date applied: ${date.exact}`}>{date.relative}</time>;
+}
+
+export function Dashboard({ applications, user, totalApplications, page, pageSize, totalPages, referenceTime }: {
   applications: Application[];
   user: { name: string; image: string | null };
   totalApplications: number;
   page: number;
   pageSize: number;
   totalPages: number;
+  referenceTime: string;
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [editor, setEditor] = useState<EditorValue | null>(null);
   const [message, setMessage] = useState<string>("");
   const [isPending, startTransition] = useTransition();
+  const [now, setNow] = useState(() => new Date(referenceTime));
+
+  useEffect(() => {
+    setNow(new Date());
+    const interval = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (editor) dialogRef.current?.showModal();
@@ -180,7 +196,7 @@ export function Dashboard({ applications, user, totalApplications, page, pageSiz
             <>
               <div className="table-wrap desktop-only">
                 <table>
-                  <thead><tr><th>Job title</th><th>Company</th><th>Tech stack</th><th>Job Posting URL</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Job title</th><th>Company</th><th>Tech stack</th><th>Job Posting URL</th><th>Date Applied</th><th>Status</th></tr></thead>
                   <tbody>
                     {applications.map((application) => (
                       <tr key={application.id}>
@@ -190,6 +206,7 @@ export function Dashboard({ applications, user, totalApplications, page, pageSiz
                         <td>{application.jobPostingUrl
                           ? <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer">View job posting</a>
                           : <span className="muted">—</span>}</td>
+                        <td><AppliedDate appliedAt={application.appliedAt} now={now} /></td>
                         <td><StatusSelect application={application} onChange={(status) => changeStatus(application, status)} disabled={isPending} /></td>
                       </tr>
                     ))}
@@ -205,6 +222,7 @@ export function Dashboard({ applications, user, totalApplications, page, pageSiz
                       ? <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer">View job posting</a>
                       : <span className="muted">—</span>}
                     <TechStack technologies={application.techStack} />
+                    <div className="application-date"><span className="muted">Date Applied: </span><AppliedDate appliedAt={application.appliedAt} now={now} /></div>
                     <StatusSelect application={application} onChange={(status) => changeStatus(application, status)} disabled={isPending} />
                   </article>
                 ))}

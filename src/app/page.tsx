@@ -25,6 +25,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       page={pagination.page}
       pageSize={pagination.pageSize}
       totalPages={pagination.totalPages}
+      referenceTime={new Date().toISOString()}
       applications={applications.map((application) => ({
         id: application.id,
         title: application.title,
@@ -32,6 +33,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         jobPostingUrl: application.jobPostingUrl,
         techStack: application.techStack,
         status: application.status,
+        appliedAt: application.appliedAt?.toISOString() ?? null,
         statusUpdatedAt: application.statusUpdatedAt.toISOString()
       }))}
     />

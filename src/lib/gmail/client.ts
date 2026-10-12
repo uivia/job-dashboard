@@ -81,6 +81,10 @@ function collectParts(part: GmailPart | undefined, texts: string[], html: string
 }
 
 export function decodeGmailMessage(message: GmailMessage): JobEmail {
+  const receivedAt = new Date(Number(message.internalDate));
+  if (!message.internalDate?.trim() || !Number.isFinite(receivedAt.getTime())) {
+    throw new Error("Gmail message is missing a valid timestamp.");
+  }
   const headers = new Map((message.payload?.headers ?? []).map((header) => [header.name.toLowerCase(), header.value]));
   const texts: string[] = [];
   const html: string[] = [];
@@ -92,7 +96,7 @@ export function decodeGmailMessage(message: GmailMessage): JobEmail {
   return {
     messageId: message.id,
     threadId: message.threadId ?? null,
-    receivedAt: new Date(Number(message.internalDate ?? Date.now())),
+    receivedAt,
     from: headers.get("from") ?? "",
     subject: headers.get("subject") ?? "",
     links,
@@ -161,8 +165,9 @@ export async function getGmailMessages(
   accessToken: string,
   messageIds: string[],
   fetcher: Fetcher = fetch
-): Promise<JobEmail[]> {
+): Promise<{ emails: JobEmail[]; failed: number }> {
   const emails: JobEmail[] = [];
+  let failed = 0;
   for (let offset = 0; offset < messageIds.length; offset += 10) {
     const batch = messageIds.slice(offset, offset + 10);
     const messages = await Promise.all(
@@ -174,12 +179,18 @@ export async function getGmailMessages(
         )
       )
     );
-    emails.push(...messages.map(decodeGmailMessage));
+    for (const message of messages) {
+      try {
+        emails.push(decodeGmailMessage(message));
+      } catch {
+        failed++;
+      }
+    }
   }
-  return emails;
+  return { emails, failed };
 }
 
 export async function listJobEmails(accessToken: string, fetcher: Fetcher = fetch): Promise<JobEmail[]> {
   const messageIds = await listGmailMessageIds(accessToken, fetcher);
-  return getGmailMessages(accessToken, messageIds, fetcher);
+  return (await getGmailMessages(accessToken, messageIds, fetcher)).emails;
 }

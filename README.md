@@ -2,6 +2,10 @@
 
 A private Next.js dashboard for tracking job applications from Gmail. It imports the last 90 days on demand, stores only extracted job data and Gmail IDs, and supports manual corrections.
 
+Date Applied shows the age of the earliest application confirmation email. Hover over the value to see its exact timestamp in Philippine time (Asia/Manila), without a timezone label. Applications without a confirmation date show Unknown; manually added jobs use the time they were added.
+
+Run `npx prisma migrate deploy` when upgrading to backfill dates from already saved confirmation records, including older confirmations that were ignored because a newer status was already recorded.
+
 ## Local setup
 
 1. Use Node.js 22.18 or newer and run `npm install`.
