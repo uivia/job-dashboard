@@ -46,11 +46,20 @@ function TechStack({ technologies }: { technologies: string[] }) {
   return <div className="tag-list">{technologies.map((technology) => <span className="tag" key={technology}>{technology}</span>)}</div>;
 }
 
-function ApplicationDate({ timestamp, label, now }: { timestamp: string | null; label: string; now: Date }) {
-  const date = formatAppliedDate(timestamp, now);
-  if (!date) return <span className="muted">Unknown</span>;
+function CompanyName({ name }: { name: string }) {
   return (
-    <time className="applied-date" dateTime={timestamp!} tabIndex={0} aria-label={`${label}: ${date.exact}`}>
+    <div className="company-identity">
+      <span className="company-mark" aria-hidden="true">{name.trim().charAt(0).toUpperCase()}</span>
+      <span className="company-name">{name}</span>
+    </div>
+  );
+}
+
+function ApplicationDate({ timestamp, label, now, variant = "applied" }: { timestamp: string | null; label: string; now: Date; variant?: "applied" | "updated" }) {
+  const date = formatAppliedDate(timestamp, now);
+  if (!date) return <span className="date-badge date-unknown">Unknown</span>;
+  return (
+    <time className={`applied-date date-badge date-${variant}`} dateTime={timestamp!} tabIndex={0} aria-label={`${label}: ${date.exact}`}>
       {date.relative}
       <span className="date-tooltip" aria-hidden="true">{date.exact}</span>
     </time>
@@ -209,18 +218,18 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
             <>
               <div className="table-wrap desktop-only">
                 <table>
-                  <thead><tr><th>Job title</th><th>Company</th><th>Tech stack</th><th>Job Posting URL</th><th>Date Applied</th><th>Updated At</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Job title</th><th>Company</th><th>Tech stack</th><th>Posting</th><th>Date applied</th><th>Updated at</th><th>Status</th></tr></thead>
                   <tbody>
                     {applications.map((application) => (
                       <tr key={application.id}>
                         <td><button className="job-link" onClick={() => setEditor({ ...application })}>{application.title}</button></td>
-                        <td>{application.company}</td>
+                        <td><CompanyName name={application.company} /></td>
                         <td><TechStack technologies={application.techStack} /></td>
                         <td>{application.jobPostingUrl
-                          ? <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer">View job posting</a>
+                          ? <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer" aria-label={`View job posting for ${application.title} at ${application.company}`}>View <span aria-hidden="true">↗</span></a>
                           : <span className="muted">—</span>}</td>
                         <td><ApplicationDate timestamp={application.appliedAt} label="Date applied" now={now} /></td>
-                        <td><ApplicationDate timestamp={application.updatedAt} label="Updated at" now={now} /></td>
+                        <td><ApplicationDate timestamp={application.updatedAt} label="Updated at" now={now} variant="updated" /></td>
                         <td><StatusSelect application={application} onChange={(status) => changeStatus(application, status)} disabled={isPending} /></td>
                       </tr>
                     ))}
@@ -231,13 +240,13 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
                 {applications.map((application) => (
                   <article className="application-card" key={application.id}>
                     <button className="job-link" onClick={() => setEditor({ ...application })}>{application.title}</button>
-                    <p>{application.company}</p>
-                    {application.jobPostingUrl
-                      ? <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer">View job posting</a>
-                      : <span className="muted">—</span>}
+                    <CompanyName name={application.company} />
                     <TechStack technologies={application.techStack} />
-                    <div className="application-date"><span className="muted">Date Applied: </span><ApplicationDate timestamp={application.appliedAt} label="Date applied" now={now} /></div>
-                    <div className="application-date"><span className="muted">Updated At: </span><ApplicationDate timestamp={application.updatedAt} label="Updated at" now={now} /></div>
+                    {application.jobPostingUrl && <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer" aria-label={`View job posting for ${application.title} at ${application.company}`}>View posting <span aria-hidden="true">↗</span></a>}
+                    <div className="application-dates">
+                      <div className="application-date"><span className="date-label">Applied</span><ApplicationDate timestamp={application.appliedAt} label="Date applied" now={now} /></div>
+                      <div className="application-date"><span className="date-label">Updated</span><ApplicationDate timestamp={application.updatedAt} label="Updated at" now={now} variant="updated" /></div>
+                    </div>
                     <StatusSelect application={application} onChange={(status) => changeStatus(application, status)} disabled={isPending} />
                   </article>
                 ))}
