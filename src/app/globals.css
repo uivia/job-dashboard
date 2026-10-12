@@ -77,7 +77,10 @@ tbody tr:hover { background: #fbfcfb; }
 .empty-state p { margin: 0; color: var(--muted); }
 .empty-icon { width: 52px; height: 52px; display: grid; place-items: center; margin: auto; border-radius: 16px; color: var(--green); background: var(--green-pale); font-size: 24px; }
 .mobile-only { display: none; }
-.pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 26px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 26px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.page-size-control { display: flex; align-items: center; gap: 8px; }
+.page-size-control select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface); }
+.page-size-control select:focus-visible { outline: 3px solid #d6ebe0; border-color: var(--green); }
 .pagination-actions { display: flex; gap: 8px; }
 .pagination .secondary-button { display: inline-block; padding: 9px 14px; color: var(--ink); text-decoration: none; }
 .pagination-disabled { opacity: .45; }

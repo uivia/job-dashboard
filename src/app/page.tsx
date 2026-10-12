@@ -5,13 +5,14 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getPagination } from "@/lib/pagination";
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ page?: string | string[] }> }) {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ page?: string | string[]; pageSize?: string | string[] }> }) {
   const session = await getServerSession(authOptions);
   const ownerEmail = process.env.DASHBOARD_OWNER_EMAIL?.toLowerCase();
   if (!session?.user?.email || session.user.email.toLowerCase() !== ownerEmail) redirect("/signin");
 
   const totalApplications = await db.jobApplication.count();
-  const pagination = getPagination((await searchParams).page, totalApplications);
+  const params = await searchParams;
+  const pagination = getPagination(params.page, totalApplications, params.pageSize);
   const applications = await db.jobApplication.findMany({
     orderBy: [{ statusUpdatedAt: "desc" }, { id: "desc" }],
     skip: pagination.skip,
@@ -22,6 +23,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       user={{ name: session.user.name ?? "John", image: session.user.image ?? null }}
       totalApplications={totalApplications}
       page={pagination.page}
+      pageSize={pagination.pageSize}
       totalPages={pagination.totalPages}
       applications={applications.map((application) => ({
         id: application.id,
