@@ -2,6 +2,7 @@ import type { ApplicationStatus, ParsedJobEvent } from "../domain";
 
 export type ExistingApplication = {
   id: string;
+  origin: "GMAIL" | "MANUAL";
   title: string;
   company: string;
   techStack: string[];
@@ -20,6 +21,14 @@ export function mergeJobPostingUrl(current: string | null, incoming: string | nu
   return current ?? incoming;
 }
 
+export function mergeAppliedAt(application: Pick<ExistingApplication, "origin" | "appliedAt">, event: ParsedJobEvent): Date | null {
+  if (application.origin === "GMAIL" && event.status === "APPLIED" &&
+      (application.appliedAt === null || event.receivedAt < application.appliedAt)) {
+    return event.receivedAt;
+  }
+  return application.appliedAt;
+}
+
 export type SyncDecision =
   | { kind: "ADD" }
   | { kind: "UPDATE"; applicationId: string; status: ApplicationStatus }
@@ -34,7 +43,9 @@ export function normalizeIdentity(value: string): string {
 
 function decisionForMatch(event: ParsedJobEvent, application: ExistingApplication): SyncDecision {
   if (event.receivedAt < application.statusUpdatedAt) {
-    if (!application.jobPostingUrl && event.jobPostingUrl) return { kind: "ENRICH", applicationId: application.id };
+    if ((!application.jobPostingUrl && event.jobPostingUrl) || mergeAppliedAt(application, event) !== application.appliedAt) {
+      return { kind: "ENRICH", applicationId: application.id };
+    }
     return { kind: "IGNORE", applicationId: application.id, reason: "STALE_STATUS" };
   }
   return {
@@ -66,7 +77,7 @@ export function decideSyncEvent(event: ParsedJobEvent, applications: ExistingApp
       match.appliedAt !== null &&
       Math.abs(event.receivedAt.getTime() - match.appliedAt.getTime()) <= FOURTEEN_DAYS;
 
-    if (event.status !== "APPLIED" || isRecentAcknowledgement) return decisionForMatch(event, match);
+    if (event.status !== "APPLIED" || match.appliedAt === null || isRecentAcknowledgement) return decisionForMatch(event, match);
   }
 
   return { kind: "ADD" };

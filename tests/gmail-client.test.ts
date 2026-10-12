@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { decodeGmailMessage, gmailSearchQuery, listGmailMessageIds } from "../src/lib/gmail/client.ts";
+import { decodeGmailMessage, getGmailMessages, gmailSearchQuery, listGmailMessageIds } from "../src/lib/gmail/client.ts";
 
 const encode = (value: string) => Buffer.from(value).toString("base64url");
 
@@ -66,6 +66,7 @@ describe("Gmail client helpers", () => {
   test("collects HTTP links from plain-text messages", () => {
     const email = decodeGmailMessage({
       id: "m-plain-link",
+      internalDate: "1791163354000",
       payload: {
         headers: [],
         mimeType: "text/plain",
@@ -82,6 +83,7 @@ describe("Gmail client helpers", () => {
   test("preserves the same-line label for a plain-text URL", () => {
     const email = decodeGmailMessage({
       id: "m-labelled-plain-link",
+      internalDate: "1791163354000",
       payload: {
         headers: [],
         mimeType: "text/plain",
@@ -110,5 +112,23 @@ describe("Gmail client helpers", () => {
 
     assert.equal(ids.length, 1001);
     assert.equal(ids.at(-1), "message-1000");
+  });
+
+  test("rejects missing or invalid timestamps instead of using the sync time", () => {
+    for (const internalDate of [undefined, "", " ", "invalid", "Infinity", "9999999999999999999"]) {
+      assert.throws(() => decodeGmailMessage({ id: "bad-timestamp", internalDate }), /valid timestamp/i);
+    }
+  });
+
+  test("keeps valid emails in a batch when another email has an invalid timestamp", async () => {
+    const result = await getGmailMessages("token", ["valid", "invalid"], async (input) => {
+      const id = String(input).includes("/valid?") ? "valid" : "invalid";
+      return new Response(JSON.stringify({
+        id,
+        internalDate: id === "valid" ? "1791163354000" : "invalid"
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    assert.deepEqual(result.emails.map(({ messageId }) => messageId), ["valid"]);
+    assert.equal(result.failed, 1);
   });
 });

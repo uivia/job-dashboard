@@ -2,7 +2,7 @@ import { db } from "../db";
 import type { ApplicationStatus } from "../domain";
 import { getGmailMessages, listGmailMessageIds } from "./client";
 import { parseJobEmail } from "./parser";
-import { decideSyncEvent, mergeJobPostingUrl, mergeTechStack, type ExistingApplication } from "./sync-plan";
+import { decideSyncEvent, mergeAppliedAt, mergeJobPostingUrl, mergeTechStack, type ExistingApplication } from "./sync-plan";
 
 export type SyncResult = {
   added: number;
@@ -28,7 +28,9 @@ export async function syncJobEmails(accessToken: string): Promise<SyncResult> {
     ).map(({ messageId }) => messageId)
   );
   const pendingIds = messageIds.filter((messageId) => !processed.has(messageId));
-  const emails = (await getGmailMessages(accessToken, pendingIds.slice(0, MAX_EMAILS_PER_SYNC))).sort(
+  const fetched = await getGmailMessages(accessToken, pendingIds.slice(0, MAX_EMAILS_PER_SYNC));
+  result.failed = fetched.failed;
+  const emails = fetched.emails.sort(
     (a, b) => a.receivedAt.getTime() - b.receivedAt.getTime()
   );
   result.remaining = Math.max(0, pendingIds.length - emails.length);
@@ -37,6 +39,7 @@ export async function syncJobEmails(accessToken: string): Promise<SyncResult> {
   });
   const applications: ExistingApplication[] = records.map((application) => ({
     id: application.id,
+    origin: application.origin,
     title: application.title,
     company: application.company,
     techStack: application.techStack,
@@ -84,6 +87,7 @@ export async function syncJobEmails(accessToken: string): Promise<SyncResult> {
         });
         applications.push({
           id: application.id,
+          origin: application.origin,
           title: application.title,
           company: application.company,
           techStack: application.techStack,
@@ -101,12 +105,13 @@ export async function syncJobEmails(accessToken: string): Promise<SyncResult> {
         const application = applications.find(({ id }) => id === decision.applicationId)!;
         const techStack = decision.kind === "UPDATE" ? mergeTechStack(application.techStack, event.techStack) : application.techStack;
         const jobPostingUrl = mergeJobPostingUrl(application.jobPostingUrl, event.jobPostingUrl);
+        const appliedAt = mergeAppliedAt(application, event);
         await db.$transaction([
           db.jobApplication.update({
             where: { id: decision.applicationId },
             data: decision.kind === "UPDATE"
-              ? { status: decision.status, statusUpdatedAt: event.receivedAt, techStack, jobPostingUrl }
-              : { jobPostingUrl }
+              ? { status: decision.status, statusUpdatedAt: event.receivedAt, techStack, jobPostingUrl, appliedAt }
+              : { jobPostingUrl, appliedAt }
           }),
           db.processedEmail.create({
             data: {
@@ -125,6 +130,7 @@ export async function syncJobEmails(accessToken: string): Promise<SyncResult> {
           application.techStack = techStack;
         }
         application.jobPostingUrl = jobPostingUrl;
+        application.appliedAt = appliedAt;
         if (event.threadId && !application.threadIds.includes(event.threadId)) application.threadIds.push(event.threadId);
         result.updated++;
         continue;
