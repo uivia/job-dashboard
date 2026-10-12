@@ -28,8 +28,12 @@ Use a compact header, a maximum content width of 1280px, and a 4px spacing base 
 - `CompanyName` pairs the complete company name with a quiet 28px initial tile (24px on mobile); the tile is decorative, not a fabricated company logo.
 - `ApplicationDate` owns both date variants. Use 6px rounded rectangles for dates and pills for technologies/status. Unknown dates remain explicitly labeled.
 - Desktop preserves the seven-column table; titles and companies receive more space than posting links. Mobile cards group title/company, technologies, optional posting link, labeled dates, then status. Hide absent posting links on mobile.
-- `StatusFilter` remains the existing keyboard-accessible listbox. Status editing stays a native select; its popup is owned by the platform.
+- `StatusFilter`, inline record status editing, and records-per-page share an authored, keyboard-accessible listbox menu. Popups stay within the viewport and animate with reduced-motion support. The editor form's status field remains a native select.
 - Shared buttons, the application editor, and sign-in screen use the same typography and accent. Global focus outlines remain visible; motion respects reduced-motion preferences.
+
+## Motion
+
+Use short, quiet transitions for dashboard controls: 120ms for color and focus-adjacent styling, 160ms for dropdowns and feedback notices, and 180ms for dialog entry. Dialogs exit in 140ms. Dropdowns fade and move 4px; dialogs fade, move 8px, and scale from .98. Keep focus outlines immediate. Disable motion when `prefers-reduced-motion: reduce` is active.
 
 ## Date and interaction contract
 

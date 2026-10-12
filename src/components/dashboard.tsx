@@ -9,6 +9,7 @@ import { applicationListHref } from "@/lib/status-filter";
 import { formatAppliedDate } from "@/lib/applied-date";
 import { createApplication, deleteApplication, syncGmail, updateApplication } from "@/app/actions";
 import { SignOutButton } from "./auth-buttons";
+import { DropdownMenu, type DropdownOption } from "./dropdown-menu";
 import { StatusFilter } from "./status-filter";
 
 type Application = {
@@ -27,17 +28,28 @@ type EditorValue = Omit<Application, "id" | "statusUpdatedAt" | "appliedAt" | "u
 
 const blankApplication: EditorValue = { id: null, title: "", company: "", jobPostingUrl: null, techStack: [], status: "APPLIED" };
 
+const statusOptions: DropdownOption[] = APPLICATION_STATUSES.map((status) => ({
+  value: status,
+  label: STATUS_LABELS[status]
+}));
+
 function StatusSelect({ application, onChange, disabled }: { application: Application; onChange: (status: ApplicationStatus) => void; disabled: boolean }) {
   return (
-    <select
-      className={`status-select status-${application.status.toLowerCase()}`}
-      aria-label={`Status for ${application.title} at ${application.company}`}
+    <DropdownMenu
+      ariaLabel={`Update status for ${application.title} at ${application.company}`}
+      triggerLabel={`Status for ${application.title} at ${application.company}`}
+      triggerContent={
+        <>
+          <span>{STATUS_LABELS[application.status]}</span>
+          <svg className="status-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+        </>
+      }
       value={application.status}
+      options={statusOptions}
+      onChange={(status) => onChange(status as ApplicationStatus)}
+      triggerClassName={`status-select status-${application.status.toLowerCase()}`}
       disabled={disabled}
-      onChange={(event) => onChange(event.target.value as ApplicationStatus)}
-    >
-      {APPLICATION_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
-    </select>
+    />
   );
 }
 
@@ -78,6 +90,10 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const finishCloseRef = useRef<(() => void) | null>(null);
   const [editor, setEditor] = useState<EditorValue | null>(null);
   const [message, setMessage] = useState<string>("");
   const [isPending, startTransition] = useTransition();
@@ -90,9 +106,41 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
   }, []);
 
   useEffect(() => {
-    if (editor) dialogRef.current?.showModal();
-    else dialogRef.current?.close();
+    const dialog = dialogRef.current;
+    if (!editor || !dialog || dialog.open) return;
+    dialog.dataset.state = "opening";
+    dialog.showModal();
+    const frame = window.requestAnimationFrame(() => { dialog.dataset.state = "open"; });
+    return () => window.cancelAnimationFrame(frame);
   }, [editor]);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+  }, []);
+
+  const openEditor = (value: EditorValue, trigger: HTMLElement) => {
+    returnFocusRef.current = trigger;
+    setEditor(value);
+  };
+
+  const closeEditor = () => {
+    const dialog = dialogRef.current;
+    if (!dialog?.open || dialog.dataset.state === "closing") return;
+    dialog.dataset.state = "closing";
+    const finish = () => {
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+      finishCloseRef.current = null;
+      if (!dialog.open) return;
+      dialog.close();
+      setEditor(null);
+      const returnFocus = returnFocusRef.current?.isConnected ? returnFocusRef.current : addButtonRef.current;
+      returnFocus?.focus({ preventScroll: true });
+    };
+    finishCloseRef.current = finish;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) finish();
+    else closeTimerRef.current = window.setTimeout(finish, 180);
+  };
 
   const run = (operation: () => Promise<void>) => {
     setMessage("");
@@ -154,7 +202,7 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
     run(async () => {
       if (editor.id) await updateApplication(editor.id, input);
       else await createApplication(input);
-      setEditor(null);
+      closeEditor();
       setMessage(editor.id ? "Application updated." : "Application added.");
     });
   };
@@ -163,7 +211,7 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
     if (!editor?.id || !window.confirm("Delete this application?")) return;
     run(async () => {
       await deleteApplication(editor.id!);
-      setEditor(null);
+      closeEditor();
       setMessage("Application deleted.");
     });
   };
@@ -186,11 +234,11 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
           </div>
           <div className="hero-actions">
             <button className="secondary-button" type="button" onClick={handleSync} disabled={isPending}>{isPending ? "Working…" : "Sync Gmail"}</button>
-            <button className="primary-button" type="button" onClick={() => setEditor(blankApplication)}>Add job</button>
+            <button ref={addButtonRef} className="primary-button" type="button" onClick={(event) => openEditor(blankApplication, event.currentTarget)}>Add job</button>
           </div>
         </div>
 
-        {message && <div className="notice" role="status">{message}</div>}
+        <div className={`notice-shell${message ? " is-visible" : ""}`} role="status" aria-live="polite" aria-atomic="true"><div className="notice">{message}</div></div>
 
         <section aria-label="Job applications">
           <div className="applications-toolbar">
@@ -222,7 +270,7 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
                   <tbody>
                     {applications.map((application) => (
                       <tr key={application.id}>
-                        <td><button className="job-link" onClick={() => setEditor({ ...application })}>{application.title}</button></td>
+                        <td><button className="job-link" onClick={(event) => openEditor({ ...application }, event.currentTarget)}>{application.title}</button></td>
                         <td><CompanyName name={application.company} /></td>
                         <td><TechStack technologies={application.techStack} /></td>
                         <td>{application.jobPostingUrl
@@ -239,7 +287,7 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
               <div className="mobile-list mobile-only">
                 {applications.map((application) => (
                   <article className="application-card" key={application.id}>
-                    <button className="job-link" onClick={() => setEditor({ ...application })}>{application.title}</button>
+                    <button className="job-link" onClick={(event) => openEditor({ ...application }, event.currentTarget)}>{application.title}</button>
                     <CompanyName name={application.company} />
                     <TechStack technologies={application.techStack} />
                     {application.jobPostingUrl && <a className="posting-link" href={application.jobPostingUrl} target="_blank" rel="noopener noreferrer" aria-label={`View job posting for ${application.title} at ${application.company}`}>View posting <span aria-hidden="true">↗</span></a>}
@@ -252,15 +300,23 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
                 ))}
               </div>
               <nav className="pagination" aria-label="Application pages">
-                <label className="page-size-control">
-                  Records per page
-                  <select value={pageSize} onChange={(event) => {
-                    const size = Number(event.target.value);
-                    startTransition(() => router.push(applicationListHref({ status: statusFilter, pageSize: size })));
-                  }} disabled={isPending}>
-                    {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
-                  </select>
-                </label>
+                <div className="page-size-control">
+                  <span>Records per page</span>
+                  <DropdownMenu
+                    ariaLabel="Records per page"
+                    triggerLabel={`Records per page: ${pageSize}`}
+                    triggerContent={<><span>{pageSize}</span><svg className="page-size-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></>}
+                    value={String(pageSize)}
+                    options={PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))}
+                    onChange={(selected) => {
+                      const size = Number(selected);
+                      startTransition(() => router.push(applicationListHref({ status: statusFilter, pageSize: size })));
+                    }}
+                    rootClassName="page-size-menu"
+                    triggerClassName="page-size-trigger"
+                    disabled={isPending}
+                  />
+                </div>
                 <span>Page {page} of {totalPages}</span>
                 <div className="pagination-actions">
                   {page > 1
@@ -277,12 +333,14 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
         </section>
       </section>
 
-      <dialog ref={dialogRef} className="editor-dialog" onCancel={() => setEditor(null)}>
+      <dialog ref={dialogRef} className="editor-dialog" onCancel={(event) => { event.preventDefault(); closeEditor(); }} onAnimationEnd={(event) => {
+        if (event.target === event.currentTarget && event.animationName === "dialog-out") finishCloseRef.current?.();
+      }}>
         {editor && (
           <form action={saveEditor}>
             <div className="dialog-heading">
               <div><p className="eyebrow">{editor.id ? "EDIT APPLICATION" : "NEW APPLICATION"}</p><h2>{editor.id ? editor.title : "Add a job"}</h2></div>
-              <button className="close-button" type="button" aria-label="Close" onClick={() => setEditor(null)}>×</button>
+              <button className="close-button" type="button" aria-label="Close" onClick={closeEditor}>×</button>
             </div>
             <label>Job title<input name="title" defaultValue={editor.title} required autoFocus /></label>
             <label>Company<input name="company" defaultValue={editor.company} required /></label>
@@ -292,7 +350,7 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
             <div className="dialog-actions">
               {editor.id && <button className="danger-button" type="button" onClick={removeApplication} disabled={isPending}>Delete</button>}
               <span />
-              <button className="secondary-button" type="button" onClick={() => setEditor(null)}>Cancel</button>
+              <button className="secondary-button" type="button" onClick={closeEditor}>Cancel</button>
               <button className="primary-button" type="submit" disabled={isPending}>{isPending ? "Saving…" : "Save"}</button>
             </div>
           </form>
