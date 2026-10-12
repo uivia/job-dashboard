@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/domain";
-import { createApplication, deleteApplication, updateApplication } from "@/app/actions";
+import { createApplication, deleteApplication, syncGmail, updateApplication } from "@/app/actions";
 import { SignOutButton } from "./auth-buttons";
 
 type Application = {
@@ -88,6 +88,32 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
     }));
   };
 
+  const handleSync = () => {
+    setMessage("");
+    startTransition(async () => {
+      try {
+        const result = await syncGmail();
+        if (result.errorMessage) {
+          setMessage(result.errorMessage);
+          return;
+        }
+        if (result.requiresReconnect) {
+          setMessage("Gmail access needs to be renewed. Sign out, then sign in again.");
+          return;
+        }
+        setMessage(
+          `${result.added} added Â· ${result.updated} updated Â· ${result.ignored} ignored${
+            result.failed ? ` Â· ${result.failed} failed` : ""
+          }${result.remaining ? ` Â· ${result.remaining} remaining; sync again after one minute` : ""}`
+        );
+        router.refresh();
+      } catch {
+        setMessage("Gmail sync stopped early. The latest saved applications are shown; you can safely retry.");
+        router.refresh();
+      }
+    });
+  };
+
   const saveEditor = (formData: FormData) => {
     if (!editor) return;
     const input = {
@@ -130,6 +156,7 @@ export function Dashboard({ applications, user, totalApplications, page, totalPa
             <h1>Jobs applied</h1>            
           </div>
           <div className="hero-actions">
+            <button className="secondary-button" type="button" onClick={handleSync} disabled={isPending}>{isPending ? "Workingâ€¦" : "Sync Gmail"}</button>
             <button className="primary-button" type="button" onClick={() => setEditor(blankApplication)}>Add job</button>
           </div>
         </div>
