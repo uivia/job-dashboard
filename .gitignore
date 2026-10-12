@@ -44,3 +44,4 @@ coverage/
 src/generated/
 *.log
 .playwright-mcp/
+~/.codex/skills/frontend-design/
