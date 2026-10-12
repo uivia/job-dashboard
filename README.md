@@ -6,6 +6,10 @@ Date Applied shows the age of the earliest application confirmation email. Hover
 
 Run `npx prisma migrate deploy` when upgrading to backfill dates from already saved confirmation records, including older confirmations that were ignored because a newer status was already recorded.
 
+Sync Gmail also revisits source emails for imported applications with missing posting links or dates. Recovery shares the sync request budget, so larger backlogs may take several syncs. Existing posting links are preserved; emails without an identifiable posting link leave the field blank.
+
+LinkedIn email links are deduplicated by posting ID, with the applied job preferred over recommendations. Indeed confirmations use their HTML employer details and the posting destination embedded in the view-job link.
+
 ## Local setup
 
 1. Use Node.js 22.18 or newer and run `npm install`.

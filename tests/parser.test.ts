@@ -1,6 +1,63 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { parseJobEmail } from "../src/lib/gmail/parser.ts";
+import { extractJobPostingUrl, parseJobEmail, type JobEmail } from "../src/lib/gmail/parser.ts";
+
+const linkEmail = (links: NonNullable<JobEmail["links"]>): JobEmail => ({
+  messageId: "provider-link", threadId: null, from: "jobs@example.com", subject: "", text: "",
+  receivedAt: new Date("2026-10-12T00:00:00Z"), links
+});
+
+test("deduplicates LinkedIn email links to the same posting", () => {
+  assert.equal(extractJobPostingUrl(linkEmail([
+    { url: "https://www.linkedin.com/comm/jobs/view/12345/?trk=applied_jobs-0-job_posting", text: "Software Engineer Acme" },
+    { url: "https://www.linkedin.com/comm/jobs/view/12345/?trk=applied_jobs-0-jobcard_body", text: "Software Engineer" }
+  ]), "Software Engineer"), "https://www.linkedin.com/jobs/view/12345");
+});
+
+test("prefers the applied LinkedIn job over recommendations with the same title", () => {
+  assert.equal(extractJobPostingUrl(linkEmail([
+    { url: "https://www.linkedin.com/comm/jobs/view/99999/?trk=email-jymbii-0-job_posting", text: "Software Engineer Other Company" },
+    { url: "https://www.linkedin.com/comm/jobs/view/12345/?trk=email-applied_jobs-0-job_posting", text: "Software Engineer Acme" }
+  ]), "Software Engineer"), "https://www.linkedin.com/jobs/view/12345");
+});
+
+test("keeps different LinkedIn postings ambiguous without an applied-job marker", () => {
+  assert.equal(extractJobPostingUrl(linkEmail([
+    { url: "https://www.linkedin.com/comm/jobs/view/12345/?trk=a", text: "Software Engineer" },
+    { url: "https://www.linkedin.com/comm/jobs/view/99999/?trk=b", text: "Software Engineer" }
+  ]), "Software Engineer"), null);
+});
+
+test("extracts the destination from Indeed confirmation view-job links", () => {
+  for (const destination of ["http://ph.indeed.com/job/python-developer-abc123", "https://apply.workable.com/j/ABC123"]) {
+    assert.equal(extractJobPostingUrl(linkEmail([
+      { url: `https://apply.indeed.com/indeedapply/confirmemail/viewjob?next=${encodeURIComponent(destination)}`, text: "Python Developer | Taguig" }
+    ]), "Python Developer"), destination);
+  }
+});
+
+test("does not unwrap unsafe Indeed destinations or lookalike providers", () => {
+  for (const url of [
+    "https://apply.indeed.com/indeedapply/confirmemail/viewjob?next=javascript%3Aalert(1)",
+    "https://evilindeed.com/indeedapply/confirmemail/viewjob?next=https%3A%2F%2Fph.indeed.com%2Fjob%2F123",
+    "https://linkedin.com.evil.example/comm/jobs/view/12345"
+  ]) assert.equal(extractJobPostingUrl(linkEmail([{ url, text: url }]), "Engineer"), null);
+});
+
+test("imports Indeed confirmations whose company appears only in HTML links", () => {
+  const event = parseJobEmail({
+    ...linkEmail([
+      { url: "https://apply.indeed.com/indeedapply/confirmemail/viewjob?next=https%3A%2F%2Fapply.workable.com%2Fj%2FABC123", text: "Python Developer | Taguig" },
+      { url: "http://ph.indeed.com/cmp/Acme?campaignid=IAconfirm", text: "Acme, Inc." }
+    ]),
+    from: "Indeed Apply <indeedapply@indeed.com>",
+    subject: "Indeed Application: Python Developer | Taguig",
+    text: "Your application has been submitted. Good luck!"
+  });
+  assert.equal(event?.title, "Python Developer | Taguig");
+  assert.equal(event?.company, "Acme Inc");
+  assert.equal(event?.jobPostingUrl, "https://apply.workable.com/j/ABC123");
+});
 
 describe("parseJobEmail", () => {
   test("extracts a JobStreet application confirmation", () => {

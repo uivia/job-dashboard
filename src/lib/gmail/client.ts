@@ -89,7 +89,10 @@ export function decodeGmailMessage(message: GmailMessage): JobEmail {
   const texts: string[] = [];
   const html: string[] = [];
   collectParts(message.payload, texts, html);
-  const body = texts.join("\n").trim() || htmlToText(html.join("\n")) || message.snippet || "";
+  // Indeed's plain-text confirmation omits the job and employer shown in HTML.
+  const confirmationHtml = /^Indeed Application:/i.test(headers.get("subject") ?? "")
+    ? htmlToText(html.join("\n")) : "";
+  const body = confirmationHtml || texts.join("\n").trim() || htmlToText(html.join("\n")) || message.snippet || "";
   const links = [...html.flatMap(linksFromHtml), ...texts.flatMap(linksFromText)]
     .filter((link, index, all) => all.findIndex(({ url }) => url === link.url) === index);
 
