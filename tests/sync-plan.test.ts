@@ -108,6 +108,16 @@ describe("decideSyncEvent", () => {
 });
 
 describe("mergeAppliedAt", () => {
+  test("uses an explicit applied date from a rejection while preserving manual dates", () => {
+    const rejection = event({ status: "REJECTED", appliedAt: new Date("2026-08-31T16:00:00Z") });
+    assert.deepEqual(mergeAppliedAt({ ...existing, appliedAt: null }, rejection), rejection.appliedAt);
+    assert.deepEqual(mergeAppliedAt({ ...existing, origin: "MANUAL" }, rejection), existing.appliedAt);
+  });
+
+  test("does not fall back to the received date when the parser rejects an application date", () => {
+    assert.equal(mergeAppliedAt({ ...existing, appliedAt: null }, event({ status: "APPLIED", appliedAt: null })), null);
+  });
+
   test("fills a missing Gmail application date from a confirmation", () => {
     const confirmation = event({ status: "APPLIED" });
     assert.deepEqual(mergeAppliedAt({ ...existing, appliedAt: null }, confirmation), confirmation.receivedAt);

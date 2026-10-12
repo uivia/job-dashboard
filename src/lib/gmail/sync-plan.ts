@@ -22,9 +22,10 @@ export function mergeJobPostingUrl(current: string | null, incoming: string | nu
 }
 
 export function mergeAppliedAt(application: Pick<ExistingApplication, "origin" | "appliedAt">, event: ParsedJobEvent): Date | null {
-  if (application.origin === "GMAIL" && event.status === "APPLIED" &&
-      (application.appliedAt === null || event.receivedAt < application.appliedAt)) {
-    return event.receivedAt;
+  const appliedAt = event.appliedAt !== undefined ? event.appliedAt : (event.status === "APPLIED" ? event.receivedAt : null);
+  if (application.origin === "GMAIL" && appliedAt &&
+      (application.appliedAt === null || appliedAt < application.appliedAt)) {
+    return appliedAt;
   }
   return application.appliedAt;
 }
