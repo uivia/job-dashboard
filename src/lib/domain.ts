@@ -10,6 +10,16 @@ export const APPLICATION_STATUSES = [
 
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
+export const STATUS_LABELS: Record<ApplicationStatus, string> = {
+  APPLIED: "Applied",
+  SCREENING: "Screening",
+  INTERVIEW: "Interview",
+  ASSESSMENT: "Assessment",
+  OFFER: "Offer",
+  REJECTED: "Rejected",
+  WITHDRAWN: "Withdrawn"
+};
+
 export type JobApplicationInput = {
   title: string;
   company: string;

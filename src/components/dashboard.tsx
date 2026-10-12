@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/domain";
+import { APPLICATION_STATUSES, STATUS_LABELS, type ApplicationStatus } from "@/lib/domain";
 import { PAGE_SIZES } from "@/lib/pagination";
-import { applicationListHref, parseStatusFilter } from "@/lib/status-filter";
+import { applicationListHref } from "@/lib/status-filter";
 import { formatAppliedDate } from "@/lib/applied-date";
 import { createApplication, deleteApplication, syncGmail, updateApplication } from "@/app/actions";
 import { SignOutButton } from "./auth-buttons";
+import { StatusFilter } from "./status-filter";
 
 type Application = {
   id: string;
@@ -23,16 +24,6 @@ type Application = {
 };
 
 type EditorValue = Omit<Application, "id" | "statusUpdatedAt" | "appliedAt" | "updatedAt"> & { id: string | null };
-
-const STATUS_LABELS: Record<ApplicationStatus, string> = {
-  APPLIED: "Applied",
-  SCREENING: "Screening",
-  INTERVIEW: "Interview",
-  ASSESSMENT: "Assessment",
-  OFFER: "Offer",
-  REJECTED: "Rejected",
-  WITHDRAWN: "Withdrawn"
-};
 
 const blankApplication: EditorValue = { id: null, title: "", company: "", jobPostingUrl: null, techStack: [], status: "APPLIED" };
 
@@ -192,25 +183,20 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
 
         {message && <div className="notice" role="status">{message}</div>}
 
-        <section className="applications-panel" aria-label="Job applications">
-          <div className="panel-heading">
-            <h2>Applications</h2>
-            <label className="status-filter-control">
-              Status
-              <select
-                value={statusFilter ?? ""}
-                disabled={isPending}
-                onChange={(event) => {
-                  const status = parseStatusFilter(event.target.value);
-                  startTransition(() => router.push(applicationListHref({ status, pageSize })));
-                }}
-              >
-                <option value="">All statuses</option>
-                {APPLICATION_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
-              </select>
-            </label>
-            <span>{totalApplications} {statusFilter ? "matching" : "total"} · Latest applied first</span>
+        <section aria-label="Job applications">
+          <div className="applications-toolbar">
+            <div className="applications-summary">
+              <div className="applications-title">
+                <h2>Applications</h2>
+                <span className="application-count" aria-label={`${totalApplications} ${statusFilter ? "matching" : "total"} applications`}>{totalApplications}</span>
+              </div>
+              <p>{statusFilter ? `${STATUS_LABELS[statusFilter]} applications` : "All your applications"} <span aria-hidden="true">·</span> Latest applied first</p>
+            </div>
+            <StatusFilter value={statusFilter} disabled={isPending} onChange={(status) => {
+              startTransition(() => router.push(applicationListHref({ status, pageSize })));
+            }} />
           </div>
+          <div className="applications-panel">
           {applications.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon" aria-hidden="true">↗</div>
@@ -278,6 +264,7 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
               </nav>
             </>
           )}
+          </div>
         </section>
       </section>
 
