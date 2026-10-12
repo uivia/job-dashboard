@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  ASSESSMENT
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+enum ApplicationOrigin {
+  GMAIL
+  MANUAL
+}
+
+enum EmailOutcome {
+  ADDED
+  UPDATED
+  IGNORED
+  FAILED
+}
+
+model JobApplication {
+  id              String             @id @default(cuid())
+  title           String
+  company         String
+  techStack       String[]
+  status          ApplicationStatus  @default(APPLIED)
+  origin          ApplicationOrigin
+  appliedAt       DateTime?
+  statusUpdatedAt DateTime
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  processedEmails ProcessedEmail[]
+
+  @@index([statusUpdatedAt])
+}
+
+model ProcessedEmail {
+  id             String             @id @default(cuid())
+  messageId      String             @unique
+  threadId       String?
+  receivedAt     DateTime
+  outcome        EmailOutcome
+  reasonCode     String?
+  inferredStatus ApplicationStatus?
+  applicationId  String?
+  application    JobApplication?    @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  createdAt      DateTime           @default(now())
+
+  @@index([threadId])
+  @@index([applicationId])
+}
+
