@@ -56,7 +56,12 @@ function TechStack({ technologies }: { technologies: string[] }) {
 function AppliedDate({ appliedAt, now }: { appliedAt: string | null; now: Date }) {
   const date = formatAppliedDate(appliedAt, now);
   if (!date) return <span className="muted">Unknown</span>;
-  return <time className="applied-date" dateTime={appliedAt!} title={date.exact} aria-label={`Date applied: ${date.exact}`}>{date.relative}</time>;
+  return (
+    <time className="applied-date" dateTime={appliedAt!} tabIndex={0} aria-label={`Date applied: ${date.exact}`}>
+      {date.relative}
+      <span className="date-tooltip" aria-hidden="true">{date.exact}</span>
+    </time>
+  );
 }
 
 export function Dashboard({ applications, user, totalApplications, page, pageSize, totalPages, referenceTime }: {
