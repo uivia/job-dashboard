@@ -11,6 +11,7 @@ import { createApplication, deleteApplication, syncGmail, updateApplication } fr
 import { SignOutButton } from "./auth-buttons";
 import { DropdownMenu, type DropdownOption } from "./dropdown-menu";
 import { StatusFilter } from "./status-filter";
+import { ThemeToggle } from "./theme-toggle";
 
 type Application = {
   id: string;
@@ -222,6 +223,7 @@ export function Dashboard({ applications, user, totalApplications, statusFilter,
         <div className="brand"><span className="brand-mark small" aria-hidden="true">{user.name.charAt(0) || "J"}<span className="brand-dot" /></span><span>Role log</span></div>
         <div className="account">
           {user.image ? <img src={user.image} alt="" referrerPolicy="no-referrer" /> : <span className="avatar-fallback">{user.name.charAt(0)}</span>}
+          <ThemeToggle />
           <SignOutButton />
         </div>
       </header>
