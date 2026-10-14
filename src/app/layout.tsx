@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Manrope, Sora } from "next/font/google";
 import "./globals.css";
 
@@ -10,9 +11,16 @@ export const metadata: Metadata = {
   description: "A private dashboard for job applications"
 };
 
+const themeBootstrap = `try {
+  document.documentElement.dataset.theme = localStorage.getItem("role-log-theme") === "dark" ? "dark" : "light";
+} catch {
+  document.documentElement.dataset.theme = "light";
+}`;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${manrope.variable} ${sora.variable}`}>
+      <Script id="role-log-theme" strategy="beforeInteractive">{themeBootstrap}</Script>
       <body>{children}</body>
     </html>
   );

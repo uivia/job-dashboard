@@ -12,17 +12,17 @@ Sora is the display and job-title face; Manrope is the body and control face. Ne
 
 `src/app/globals.css` is the canonical runtime source; this document records intent and accepted values rather than generating CSS. Components consume the global stylesheet and its custom properties. Keep both sources aligned when changing the visual system.
 
-- Ink `--ink`: #17201b; secondary text `--muted`: #606d65.
-- Page `--paper`: #f5f7f4; surface `--surface`: #ffffff; borders `--line`: #dde3de.
-- Accent `--green`: #1f6b4f; hover `--green-dark`: #15523c; tint `--green-pale`: #e8f3ed.
-- Applied date: `--date-applied-bg` #edf5ef, `--date-applied-ink` #315e43.
-- Updated date: `--date-updated-bg` #eef1f5, `--date-updated-ink` #4e6078.
+- Light mode remains the default: ink `--ink` #17201b, secondary text `--muted` #606d65, page `--paper` #f5f7f4, surface `--surface` #ffffff, borders `--line` #dde3de, and accent `--green` #1f6b4f.
+- Dark mode uses a forest-night palette: page `--paper` #111b15, surface `--surface` #19251e, ink `--ink` #e6eee8, secondary text `--muted` #a3b0a7, borders `--line` #33443a, and accent `--green` #8dcaa7. Semantic status and date colors retain their meanings with dark-surface variants.
+- In both modes, hover `--green-dark` and tint `--green-pale` support the primary accent. CSS variables in `globals.css` remain the single runtime path for shared components.
+- Applied date: light `--date-applied-bg` #edf5ef and `--date-applied-ink` #315e43; dark #203a2b and #a9dfba.
+- Updated date: light `--date-updated-bg` #eef1f5 and `--date-updated-ink` #4e6078; dark #27303d and #b9c8df.
 
 Date color identifies the field, never urgency or application outcome. Status colors retain their established meanings and remain visually stronger than metadata.
 
 ## Layout and components
 
-Use a compact header, a maximum content width of 1280px, and a 4px spacing base with optical adjustments for text and badges. Surfaces use soft borders and minimal shadow, with a 14px panel radius and 9px button radius. Avoid decorative gradients on the dashboard.
+Use a compact header, a maximum content width of 1280px, and a 4px spacing base with optical adjustments for text and badges. Surfaces use soft borders and minimal shadow, with a 14px panel radius and 9px button radius. Keep the theme toggle beside the account avatar. The saved theme preference applies to the sign-in and dashboard surfaces. Avoid decorative gradients on the dashboard.
 
 - Roles are text buttons that open the existing application editor. Keep the complete role title visible and allow wrapping.
 - `CompanyName` pairs the complete company name with a quiet 28px initial tile (24px on mobile); the tile is decorative, not a fabricated company logo.
@@ -33,7 +33,7 @@ Use a compact header, a maximum content width of 1280px, and a 4px spacing base 
 
 ## Motion
 
-Use short, quiet transitions for dashboard controls: 120ms for color and focus-adjacent styling, 160ms for dropdowns and feedback notices, and 180ms for dialog entry. Dialogs exit in 140ms. Dropdowns fade and move 4px; dialogs fade, move 8px, and scale from .98. Keep focus outlines immediate. Disable motion when `prefers-reduced-motion: reduce` is active.
+Use short, quiet transitions for dashboard controls: 120ms for color and focus-adjacent styling, 160ms for dropdowns and feedback notices, and 180ms for dialog entry. Dialogs exit in 140ms. Theme changes ease across color, surface, border, shadow, and icon states over 420ms. Dropdowns fade and move 4px; dialogs fade, move 8px, and scale from .98. Keep focus outlines immediate. Disable motion when `prefers-reduced-motion: reduce` is active.
 
 ## Date and interaction contract
 
